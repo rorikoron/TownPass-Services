@@ -1,0 +1,22 @@
+{
+  "data": {
+    "message": "This is a demo response from demo_one.json",
+    "demo_items": [
+      {
+        "id": "demo-1",
+        "title": "Demo Item 1",
+        "description": "This is the first item in the demo list."
+      },
+      {
+        "id": "demo-2",
+        "title": "Demo Item 2",
+        "description": "This is the second item in the demo list."
+      },
+      {
+        "id": "demo-3",
+        "title": "Demo Item 3",
+        "description": "This is the third item in the demo list."
+      }
+    ]
+  }
+}

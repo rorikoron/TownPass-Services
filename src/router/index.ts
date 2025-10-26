@@ -45,6 +45,7 @@ import FeePaymentHistoryDetailView from '@/views/FeePaymentHistoryDetailView.vue
 import FeePaymentScanView from '@/views/FeePaymentScanView.vue';
 import FeePaymentStepView from '@/views/FeePaymentStepView.vue';
 import FeePaymentFinishedView from '@/views/FeePaymentFinishedView.vue';
+import DemoOneView from '@/views/DemoOneView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -400,8 +401,16 @@ const router = createRouter({
           meta: {
             title: '掃描'
           }
-        }
+        },
       ]
+    },
+    {
+      path: '/demo-one',
+      name: 'demo-one',
+      component: DemoOneView,
+      meta: {
+        title: 'Microservice Demo 1'
+      }
     }
   ]
 });
