@@ -3,9 +3,9 @@ name: CI
 # 觸發條件：當有程式碼推送到任何分支，或有 Pull Request 時
 on:
   push:
-    branches: [ "**" ]
+    branches: ['**']
   pull_request:
-    branches: [ "**" ]
+    branches: ['**']
 
 jobs:
   code-quality:
@@ -13,6 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
+      - run: num ci
       - run: npm run format
       - run: npm run lint
       - run: npm run build
