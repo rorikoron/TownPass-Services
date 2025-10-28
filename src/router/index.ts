@@ -401,7 +401,7 @@ const router = createRouter({
           meta: {
             title: '掃描'
           }
-        },
+        }
       ]
     },
     {
