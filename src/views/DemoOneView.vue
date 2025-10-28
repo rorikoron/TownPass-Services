@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import demoOneJson from '../../public/mock/demo_one.json';
 
 const demoOneData = demoOneJson.data;
+onMounted(() => {
+  console.log('DemoOneView mounted');
+});
 </script>
 <template>
   <h1 class="text-bold">Microservice Demo 1</h1>
