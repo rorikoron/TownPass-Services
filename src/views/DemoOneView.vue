@@ -10,6 +10,7 @@ const demoHealthConnectData = ref<string>('');
 
 const handleHealthConnectData = (event: { data: string }) => {
   console.log(event.data);
+  demoHealthConnectData.value = event.data;
 };
 useHandleConnectionData(handleHealthConnectData);
 onMounted(() => {
