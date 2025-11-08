@@ -224,7 +224,7 @@ const handleConnectionData = (event: { data: string }) => {
 useHandleConnectionData(handleConnectionData);
 onMounted(async () => {
   useConnectionMessage('userinfo', null);
-  useConnectionMessage('health_connection', null);
+  useConnectionMessage('health_connect', null);
 });
 
 const updateEvents = async () => {
