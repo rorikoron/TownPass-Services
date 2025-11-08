@@ -204,7 +204,7 @@ const updateEvents = async () => {
   const { data, error } = await supabase
     .from('event')
     .select('*')
-    .or('user_id.eq.' + user_id + ',sitter_id.eq.' + user_id);
+    .or('user_id.neq.' + user_id + ',sitter_id.eq.' + user_id);
 
   if (error) {
     console.error('データ取得エラー:', error);

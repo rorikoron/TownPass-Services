@@ -229,22 +229,27 @@ onMounted(() => {
   useFakeHandleConnectionData(handleData);
 });
 
-const handleWalkingDog = (dog: Dog) => {
+const user_id = ref('7f3562f4-bb3f-4ec7-89b9-da3b4b5ff250');
+const user_name = ref('testuser');
+const handleWalkingDog = async (created_at: string) => {
   // 檢查當前用戶帳號是否已設置
-  if (!store.currentUserAccountId) {
-    alert('請先載入用戶信息');
+  const { data, error } = await supabase
+    .from('event')
+    .neq('user_id', user_id.value)
+    .update({
+      sitter_id: user_id.value,
+      proposer_name: user_name.value
+    })
+    .eq('created_at', created_at);
+
+  if (error) {
+    console.error('データ取得エラー:', error);
     return;
   }
+  alert('已加入遛狗清單！');
 
-  store.addToQueue(
-    {
-      id: dog.id,
-      name: dog.name,
-      breed: dog.breed,
-      owner: dog.owner
-    },
-    store.currentUserAccountId
-  );
+  // route to /history
+  router.push('/history');
 };
 
 const handleStopWalking = () => {
@@ -392,7 +397,7 @@ const handleStopWalking = () => {
               </BaseButton>
               <BaseButton
                 class="flex-1 py-2 text-sm bg-primary text-primary-foreground"
-                @click="handleWalkingDog(dog)"
+                @click="handleWalkingDog(event.created_at)"
               >
                 加入遛狗清單
               </BaseButton>
