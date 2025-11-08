@@ -1,0 +1,14 @@
+{
+  "organizeImports": {
+    "enabled": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "correctness": {
+        "useHookAtTopLevel": "off"
+      }
+    }
+  },
+  "ignore": ["src/**", "node_modules/**", ".next/**", "public/**"]
+}

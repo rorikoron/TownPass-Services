@@ -12,7 +12,7 @@ const handleHealthConnectData = (event: { data: string }) => {
   console.log(event.data);
   demoHealthConnectData.value = event.data;
 };
-useHandleConnectionData(handleHealthConnectData);
+useHandleConnectionData(handleHealthConnectData);aza
 onMounted(() => {
   useConnectionMessage('health_connect', null);
 });
