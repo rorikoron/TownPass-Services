@@ -20,8 +20,11 @@ let infoWindow: google.maps.InfoWindow | null = null;
 const isMapReady = ref(false);
 const parks = ref<any[]>([]);
 const events = ref<any[]>([]);
+const cafes = ref<any[]>([]);
 const selectedEventId = ref<string | null>(null);
 const isRefreshing = ref(false);
+const activeTab = ref<'parks' | 'cafes'>('parks'); // 當前標籤：公園或咖啡廳
+const currentDistrict = ref<string>(''); // 使用者所在的區
 
 /** 目前位置（預設信義區） */
 const currentLocation = ref<{ lat: number; lng: number }>({
@@ -36,6 +39,34 @@ const setMapHeight = () => {
   const el = document.getElementById('map');
   if (el) el.style.height = `${window.innerHeight - 88}px`;
 };
+
+/** 使用 Google Geocoding API 取得當前位置的區域 */
+async function getCurrentDistrict() {
+  try {
+    const geocoder = new google.maps.Geocoder();
+    const result = await geocoder.geocode({
+      location: { lat: currentLocation.value.lat, lng: currentLocation.value.lng }
+    });
+    
+    if (result.results && result.results.length > 0) {
+      const addressComponents = result.results[0].address_components;
+      // 找到區域（administrative_area_level_3 或 sublocality_level_1）
+      const districtComponent = addressComponents.find(
+        component => 
+          component.types.includes('administrative_area_level_3') || 
+          component.types.includes('sublocality_level_1')
+      );
+      
+      if (districtComponent) {
+        currentDistrict.value = districtComponent.long_name.replace('區', '');
+        console.log('目前所在區域:', currentDistrict.value);
+      }
+    }
+  } catch (error) {
+    console.error('Error getting district:', error);
+    currentDistrict.value = '信義'; // 預設信義區
+  }
+}
 
 /** --------- 地圖初始化 --------- */
 
@@ -148,6 +179,43 @@ async function fetchParks() {
   parks.value = parksWithDistance;
 }
 
+/** 從 JSON 檔案讀取寵物友善咖啡廳資料（根據區域過濾）*/
+async function fetchCafes() {
+  try {
+    const response = await fetch('/mock/taipei_animal_friendly.json');
+    const data = await response.json();
+    
+    console.log('目前所在區域:', currentDistrict.value);
+    
+    // 根據使用者所在的區域過濾餐飲業店家
+    const cafeData = data.filter((item: any) => 
+      item['業者名稱'] && 
+      item['地址'] && 
+      item['業別'] === '餐飲業' &&
+      item['Unnamed: 0'] && 
+      item['Unnamed: 0'].includes(currentDistrict.value)
+    );
+    
+    console.log(`${currentDistrict.value}區找到 ${cafeData.length} 家寵物友善店家`);
+    
+    // 直接使用資料，不需要 Geocoding
+    const cafesInDistrict = cafeData.map((cafe: any) => ({
+      name: cafe['業者名稱'],
+      phone: cafe['門市電話'],
+      address: cafe['地址'],
+      district: cafe['Unnamed: 0'],
+      petType: cafe['友善物種'],
+      rules: cafe['入內規定'],
+      services: cafe['提供寵物周邊服務'],
+      environment: cafe['環境服務']
+    }));
+    
+    cafes.value = cafesInDistrict;
+  } catch (error) {
+    console.error('Error fetching cafes:', error);
+  }
+}
+
 
 
 onMounted(async () => {
@@ -195,8 +263,11 @@ onMounted(async () => {
     // 使用預設位置即可
   }
 
-  // 抓取活動和景點資料（在 Google Maps 載入完成後）
-  await Promise.all([fetchEvents(), fetchParks()]);
+  // 取得目前所在區域
+  await getCurrentDistrict();
+
+  // 抓取活動、景點和咖啡廳資料（在 Google Maps 載入完成後）
+  await Promise.all([fetchEvents(), fetchParks(), fetchCafes()]);
 
   // 地圖互動監聽
   mapDragendListener = map.addListener('dragend', updateMarkers);
@@ -339,8 +410,9 @@ const recenter = async () => {
     selfMarker?.setPosition(new google.maps.LatLng(currentLocation.value.lat, currentLocation.value.lng));
     map?.setCenter(selfMarker!.getPosition()!);
     updateMarkers();
-    // 重新計算活動和景點距離
-    await Promise.all([fetchEvents(), fetchParks()]);
+    // 重新取得區域並重新計算活動、景點和咖啡廳
+    await getCurrentDistrict();
+    await Promise.all([fetchEvents(), fetchParks(), fetchCafes()]);
   } catch {
     // ignore
   }
@@ -358,7 +430,7 @@ const bookEvent = (event: any) => {
 const refreshData = async () => {
   isRefreshing.value = true;
   try {
-    await Promise.all([fetchEvents(), fetchParks()]);
+    await Promise.all([fetchEvents(), fetchParks(), fetchCafes()]);
     console.log('資料已重新載入');
   } catch (error) {
     console.error('重新載入資料時發生錯誤:', error);
@@ -515,37 +587,109 @@ const refreshData = async () => {
     </BaseCard>
   </div>
 
-  <!-- 景點推薦 -->
+  <!-- 寵物友善推薦（標籤頁） -->
   <div class="px-4 py-6 space-y-3 bg-background pb-24">
-    <h3 class="font-semibold text-foreground">推薦寵物友善景點</h3>
-    
-    <!-- 從 Supabase 抓取的景點 -->
-    <template v-if="parks.length > 0">
-      <BaseCard v-for="park in parks" :key="park.park_id" class="border border-border">
-        <div class="flex items-start justify-between">
-          <div class="flex-1">
-            <p class="font-medium text-foreground">{{ park.name }}</p>
-            <p class="text-sm text-muted-foreground mt-1">
-              <span v-if="park.district">{{ park.district }}</span>
-            </p>
-            <p v-if="park.description" class="text-xs text-muted-foreground mt-2">{{ park.description }}</p>
-          </div>
-          <div class="flex items-center gap-1 ml-3">
-            <svg class="w-4 h-4 text-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
-            <span class="text-sm font-semibold text-primary whitespace-nowrap">{{ park.distance }} km</span>
-          </div>
-        </div>
-      </BaseCard>
-    </template>
+    <!-- 標籤頁 -->
+    <div class="flex gap-2 mb-4">
+      <button 
+        @click="activeTab = 'parks'" 
+        :class="[
+          'flex-1 py-2 px-4 rounded-lg font-medium transition-all',
+          activeTab === 'parks' 
+            ? 'bg-primary text-white shadow-md' 
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        ]"
+      >
+        公園景點
+      </button>
+      <button 
+        @click="activeTab = 'cafes'" 
+        :class="[
+          'flex-1 py-2 px-4 rounded-lg font-medium transition-all',
+          activeTab === 'cafes' 
+            ? 'bg-primary text-white shadow-md' 
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        ]"
+      >
+        寵物友善店家
+      </button>
+    </div>
 
-    <!-- 如果沒有資料，顯示提示訊息 -->
-    <BaseCard v-else class="border border-border">
-      <p class="text-center text-muted-foreground py-4">
-        附近 5 公里內沒有找到景點
-      </p>
-    </BaseCard>
+    <!-- 公園景點標籤內容 -->
+    <div v-if="activeTab === 'parks'">
+      <h3 class="font-semibold text-foreground mb-3">附近的寵物友善公園</h3>
+      
+      <!-- 從 Supabase 抓取的景點 -->
+      <template v-if="parks.length > 0">
+        <BaseCard v-for="park in parks" :key="park.park_id" class="border border-border mb-3">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <p class="font-medium text-foreground">{{ park.name }}</p>
+              <p class="text-sm text-muted-foreground mt-1">
+                <span v-if="park.district">{{ park.district }}</span>
+              </p>
+              <p v-if="park.description" class="text-xs text-muted-foreground mt-2">{{ park.description }}</p>
+            </div>
+            <div class="flex items-center gap-1 ml-3">
+              <svg class="w-4 h-4 text-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              <span class="text-sm font-semibold text-primary whitespace-nowrap">{{ park.distance }} km</span>
+            </div>
+          </div>
+        </BaseCard>
+      </template>
+
+      <!-- 如果沒有資料，顯示提示訊息 -->
+      <BaseCard v-else class="border border-border">
+        <p class="text-center text-muted-foreground py-4">
+          附近 5 公里內沒有找到景點
+        </p>
+      </BaseCard>
+    </div>
+
+    <!-- 咖啡店家標籤內容 -->
+    <div v-if="activeTab === 'cafes'">
+      
+      <!-- 從 JSON 載入的咖啡廳 -->
+      <template v-if="cafes.length > 0">
+        <BaseCard v-for="(cafe, index) in cafes" :key="index" class="border border-border mb-3">
+          <div class="flex items-start gap-3">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <p class="font-medium text-foreground">{{ cafe.name }}</p>
+                <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">餐飲業</span>
+              </div>
+              <p class="text-sm text-muted-foreground mt-1">
+                {{ cafe.address }}
+              </p>
+              <p v-if="cafe.phone" class="text-xs text-muted-foreground mt-1">
+                電話：{{ cafe.phone }}
+              </p>
+              <div v-if="cafe.petType" class="mt-2 p-2 bg-gray-50 rounded">
+                <p class="text-xs text-foreground font-medium">友善物種</p>
+                <p class="text-xs text-muted-foreground">{{ cafe.petType }}</p>
+              </div>
+              <div v-if="cafe.rules" class="mt-2 p-2 bg-gray-50 rounded">
+                <p class="text-xs text-foreground font-medium">入內規定</p>
+                <p class="text-xs text-muted-foreground whitespace-pre-line">{{ cafe.rules }}</p>
+              </div>
+              <div v-if="cafe.services" class="mt-2 p-2 bg-gray-50 rounded">
+                <p class="text-xs text-foreground font-medium">寵物服務</p>
+                <p class="text-xs text-muted-foreground whitespace-pre-line">{{ cafe.services }}</p>
+              </div>
+            </div>
+          </div>
+        </BaseCard>
+      </template>
+
+      <!-- 如果沒有資料或載入中，顯示提示訊息 -->
+      <BaseCard v-else class="border border-border">
+        <p class="text-center text-muted-foreground py-4">
+          {{ isRefreshing ? '正在載入店家資料...' : `${currentDistrict}區沒有找到寵物友善店家` }}
+        </p>
+      </BaseCard>
+    </div>
   </div>
 
   <BottomNav />
