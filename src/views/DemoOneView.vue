@@ -21,7 +21,7 @@ interface userinfoConfig {
 }
 const handleConnectionData = (event: { data: string }) => {
   const parsed = JSON.parse(event.data);
-  console.log('Received data from connection:', event.data?.parsed);
+  console.log('Received data from connection:', parsed);
   user_name.value = parsed.data?.realName;
   user_id.value = parsed.data?.data?.id;
 };
