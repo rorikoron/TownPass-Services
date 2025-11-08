@@ -222,10 +222,6 @@ const handleConnectionData = (event: { data: string }) => {
 };
 
 useHandleConnectionData(handleConnectionData);
-onMounted(async () => {
-  useConnectionMessage('userinfo', null);
-  useConnectionMessage('health_connect', null);
-});
 
 const updateEvents = async () => {
   const { data, error } = await supabase
@@ -242,6 +238,7 @@ const updateEvents = async () => {
 };
 onMounted(async () => {
   useConnectionMessage('userinfo', null);
+  useConnectionMessage('health_connect', null);
   await updateEvents();
 });
 function calculateMins(start_time: string, end_time: string) {
