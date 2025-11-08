@@ -25,6 +25,7 @@ const selectedEventId = ref<string | null>(null);
 const isRefreshing = ref(false);
 const activeTab = ref<'parks' | 'cafes'>('parks'); // 當前標籤：公園或咖啡廳
 const currentDistrict = ref<string>(''); // 使用者所在的區
+const showScrollHint = ref(false); // 控制下拉提示的顯示
 
 /** 目前位置（預設信義區） */
 const currentLocation = ref<{ lat: number; lng: number }>({
@@ -335,6 +336,14 @@ function updateMarkers() {
       // 設置選中的事件 ID
       selectedEventId.value = event.event_id;
       
+      // 第一次點擊標記時顯示下拉提示，3秒後自動消失
+      if (!showScrollHint.value) {
+        showScrollHint.value = true;
+        setTimeout(() => {
+          showScrollHint.value = false;
+        }, 3000);
+      }
+      
       // 生成活動圖片（使用 dog_name 作為頭像種子）
       const avatar = event.image_url || `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(event.dog_name || 'dog-' + event.event_id)}`;
       
@@ -345,15 +354,20 @@ function updateMarkers() {
       if (event.request_sitter) tags.push('徵求保姆');
 
       const html = `
-        <div style="display:flex;gap:12px;align-items:center;max-width:280px">
-          <img src="${avatar}" alt="${event.dog_name}" width="56" height="56" style="border-radius:50%;" />
-          <div style="flex:1;">
-            <div style="font-weight:700;font-size:16px;margin-bottom:4px">${event.title}</div>
-            <div style="color:#666;font-size:13px;margin-bottom:6px">${event.description}</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
-              ${tags.map((tag) => `<span style="font-size:12px;border:1px solid #2EB6C7;color:#2EB6C7;border-radius:999px;padding:2px 8px">${tag}</span>`).join('')}
+        <div style="display:flex;gap:16px;align-items:start;max-width:320px;padding:8px;">
+          <img src="${avatar}" alt="${event.dog_name}" width="64" height="64" style="border-radius:50%;object-fit:cover;flex-shrink:0;" />
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:17px;margin-bottom:6px;color:#1a1a1a;line-height:1.3;">${event.title}</div>
+            <div style="color:#666;font-size:14px;margin-bottom:8px;line-height:1.4;">${event.description}</div>
+            ${tags.length > 0 ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+              ${tags.map((tag) => `<span style="font-size:11px;border:1px solid #2EB6C7;color:#2EB6C7;border-radius:12px;padding:3px 10px;font-weight:500;">${tag}</span>`).join('')}
+            </div>` : ''}
+            <div style="display:flex;align-items:center;gap:4px;color:#2EB6C7;font-size:13px;font-weight:600;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#2EB6C7">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              <span>距離 ${event.distance.toFixed(1)} 公里</span>
             </div>
-            <div style="margin-top:8px;color:#777;font-size:12px">距離你約 ${event.distance.toFixed(1)} 公里</div>
           </div>
         </div>
       `;
@@ -476,7 +490,7 @@ const refreshData = async () => {
   </div>
 
   <!-- 活動列表 - 只顯示選中的事件 -->
-  <div v-if="selectedEventId" class="px-4 py-6 space-y-3 bg-background">
+  <div v-if="selectedEventId" class="px-4 pt-3 pb-6 space-y-3 bg-background">
     <h3 class="font-semibold text-foreground">活動詳情</h3>
     
     <!-- 顯示選中的活動 -->
@@ -601,9 +615,9 @@ const refreshData = async () => {
   </div>
 
   <!-- 寵物友善推薦（標籤頁） -->
-  <div class="px-4 py-6 space-y-3 bg-background pb-24">
+  <div class="px-4 bg-background pb-24">
     <!-- 標籤頁 -->
-    <div class="flex gap-2 mb-4">
+    <div class="flex gap-2 mb-3">
       <button 
         @click="activeTab = 'parks'" 
         :class="[
@@ -705,6 +719,19 @@ const refreshData = async () => {
     </div>
   </div>
 
+  <!-- 下拉提示 - 固定在頁面底部，僅在第一次點擊時顯示 3 秒 -->
+  <Transition name="fade">
+    <div 
+      v-if="showScrollHint" 
+      class="fixed bottom-20 left-0 right-0 flex items-center justify-center gap-2 py-2 bg-white/95 backdrop-blur-sm border-t border-gray-200 text-gray-500 text-sm z-40"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="animate-bounce">
+        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+      </svg>
+      <span>向下滑動查看詳細資訊</span>
+    </div>
+  </Transition>
+
   <BottomNav />
 </template>
 
@@ -724,5 +751,16 @@ const refreshData = async () => {
 /* 小圓角標籤 */
 .pill {
   @apply text-primary-500 border border-primary-500 rounded-full px-2 text-sm;
+}
+
+/* 淡入淡出動畫 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
