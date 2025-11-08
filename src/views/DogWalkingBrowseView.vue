@@ -11,6 +11,8 @@ import dogWalkingDetailJson from '../../public/mock/dog_walking_detail.json';
 import { useDogWalkingStore } from '@/stores/dogWalking';
 import { supabase } from '@/lib/supabaseClient';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { useHandleConnectionData } from '@/composables/useHandleConnectionData';
+import { useConnectionMessage } from '@/composables/useConnectionMessage';
 
 interface Dog {
   id: string;
@@ -54,6 +56,15 @@ interface DogDetail {
 }
 
 const store = useDogWalkingStore();
+const handleConnectionData = (event: { data: string }) => {
+  const parsed = JSON.parse(event.data);
+  console.log('Received data:', JSON.stringify(parsed, null, 2));
+
+  user_name.value = parsed.data?.realName;
+  user_id.value = parsed.data?.id;
+};
+
+useHandleConnectionData(handleConnectionData);
 
 const USE_CASES = [
   { label: '飼主可發佈任務讓他人代遛狗', value: 'owner' },
@@ -206,27 +217,9 @@ const handleContactOwner = (dogName: string) => {
   alert(`聯繫飼主: ${dogName}`);
 };
 
-// 模擬 Flutter 傳入的用戶數據
-const currentUserData = ref<{ data: string }>({ data: '' });
-
-const handleData = (event: { data: string }) => {
-  currentUserData.value = event;
-  // 從模擬數據中提取帳號 ID（這裡假設為 UUID 格式）
-  store.setCurrentUserAccountId(event.data);
-  console.log('當前用戶帳號:', event.data);
-};
-
-const useFakeHandleConnectionData = (callback: (event: { data: string }) => void) => {
-  // 模擬收到 UUID（帳號 ID），2 秒後回調
-  setTimeout(() => {
-    const fakeNfcEvent = { data: 'user-uuid-' + Math.random().toString(36).substr(2, 9) };
-    callback(fakeNfcEvent);
-  }, 2000);
-};
-
 onMounted(() => {
-  // 初始化時模擬獲取用戶帳號
-  useFakeHandleConnectionData(handleData);
+  // 初始化時模擬獲取用戶帳號onMounted(async () => {
+  useConnectionMessage('userinfo', null);
 });
 
 const user_id = ref('7f3562f4-bb3f-4ec7-89b9-da3b4b5ff250');

@@ -7,6 +7,8 @@ import PageHeader from '@/components/molecules/PageHeader.vue';
 import BottomNav from '@/components/molecules/BottomNav.vue';
 import { useDogWalkingStore } from '@/stores/dogWalking';
 import { supabase } from '@/lib/supabaseClient';
+import { useHandleConnectionData } from '@/composables/useHandleConnectionData';
+import { useConnectionMessage } from '@/composables/useConnectionMessage';
 
 interface Record {
   id: string;
@@ -198,7 +200,18 @@ interface Event {
 const events = ref<Event[]>([]);
 
 // replace with acctual id
-const user_id = '7f3562f4-bb3f-4ec7-89b9-da3b4b5ff250';
+const user_id = ref<string>('7f3562f4-bb3f-4ec7-89b9-da3b4b5ff250');
+const handleConnectionData = (event: { data: string }) => {
+  const parsed = JSON.parse(event.data);
+  console.log('Received data:', JSON.stringify(parsed, null, 2));
+
+  user_id.value = parsed.data?.id;
+};
+
+useHandleConnectionData(handleConnectionData);
+onMounted(async () => {
+  useConnectionMessage('userinfo', null);
+});
 
 const updateEvents = async () => {
   const { data, error } = await supabase
@@ -214,6 +227,7 @@ const updateEvents = async () => {
   events.value = data as Event[];
 };
 onMounted(async () => {
+  useConnectionMessage('userinfo', null);
   await updateEvents();
 });
 function calculateMins(start_time: string, end_time: string) {
@@ -292,7 +306,9 @@ function calculateMins(start_time: string, end_time: string) {
 
                   <!-- 狀態標記 -->
                   <div class="flex-shrink-0">
-                    <span class="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-600">
+                    <span
+                      class="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-600"
+                    >
                       待遛狗
                     </span>
                   </div>
@@ -315,7 +331,7 @@ function calculateMins(start_time: string, end_time: string) {
                 </div>
               </div>
             </BaseCard>
-            
+
             <!-- 原本的發布紀錄（從資料庫抓取） -->
             <BaseCard
               v-for="record in events.filter((e) => e.user_id === user_id)"
@@ -376,7 +392,13 @@ function calculateMins(start_time: string, end_time: string) {
             </BaseCard>
 
             <!-- 空狀態 -->
-            <div v-if="walkingQueue.length === 0 && events.filter((e) => e.user_id === user_id).length === 0" class="text-center py-12">
+            <div
+              v-if="
+                walkingQueue.length === 0 &&
+                events.filter((e) => e.user_id === user_id).length === 0
+              "
+              class="text-center py-12"
+            >
               <p class="text-muted-foreground">沒有發布紀錄</p>
             </div>
           </div>
