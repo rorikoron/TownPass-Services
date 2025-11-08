@@ -10,6 +10,7 @@ import PageHeader from '@/components/molecules/PageHeader.vue';
 import BottomNav from '@/components/molecules/BottomNav.vue';
 import { supabase } from '@/lib/supabaseClient';
 import { useConnectionMessage } from '@/composables/useConnectionMessage';
+import { useHandleConnectionData } from '@/composables/useHandleConnectionData';
 
 const store = useDogWalkingStore();
 
