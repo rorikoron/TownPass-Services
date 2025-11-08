@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useDogWalkingStore } from '@/stores/dogWalking';
 import BaseCard from '@/components/atoms/BaseCard.vue';
 import BaseButton from '@/components/atoms/BaseButton.vue';
@@ -11,9 +11,13 @@ import BottomNav from '@/components/molecules/BottomNav.vue';
 import { Plus, X } from 'lucide-vue-next';
 import FormPreview from '@/components/organisms/FormPreview.vue';
 import { supabase } from '@/lib/supabaseClient';
+import { AlertCircle } from 'lucide-vue-next';
 
 const store = useDogWalkingStore();
 
+onMounted(async () => {
+  await geoFindMe();
+});
 const DOG_BREEDS = [
   { label: '柯基', value: '柯基' },
   { label: '哈士奇', value: '哈士奇' },
@@ -40,11 +44,82 @@ const USE_CASES = [
 const ownerName = ref('');
 const ownerLocation = ref('');
 
+const gpsStatus = ref('');
+const isGettingLocation = ref(false);
+const currentLat = ref<number | null>(null);
+const currentLng = ref<number | null>(null);
+
+function geoFindMe() {
+  if (!('geolocation' in navigator)) {
+    gpsStatus.value = '你的瀏覽器不支援定位功能';
+    alert(gpsStatus.value);
+    return;
+  }
+
+  isGettingLocation.value = true;
+  gpsStatus.value = '定位中...';
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude, longitude, accuracy } = pos.coords;
+      currentLat.value = latitude;
+      currentLng.value = longitude;
+
+      gpsStatus.value = `定位成功（誤差約 ${Math.round(accuracy)}m）`;
+      ownerLocation.value = `緯度: ${latitude.toFixed(6)}, 經度: ${longitude.toFixed(6)}`;
+
+      console.log('GPS 定位成功:', {
+        latitude,
+        longitude,
+        accuracy: `${Math.round(accuracy)}m`
+      });
+
+      isGettingLocation.value = false;
+    },
+    (err) => {
+      let errorMessage = '';
+
+      switch (err.code) {
+        case err.PERMISSION_DENIED:
+          errorMessage =
+            '你拒絕授權定位（或瀏覽器設定禁止）\n\n請檢查：\n1. Arc 瀏覽器網址列左側是否允許定位\n2. macOS 系統設定 → 隱私權與安全性 → 定位服務 → Arc';
+          break;
+        case err.POSITION_UNAVAILABLE:
+          errorMessage = '無法取得位置（可能室內訊號不好）\n建議：移到窗邊或戶外再試';
+          break;
+        case err.TIMEOUT:
+          errorMessage = '取得位置逾時\n建議：重新整理頁面再試一次';
+          break;
+        default:
+          errorMessage = `定位失敗（錯誤代碼: ${err.code}）`;
+      }
+
+      gpsStatus.value = errorMessage;
+      alert(errorMessage);
+
+      console.error('GPS 定位失敗:', {
+        code: err.code,
+        message: err.message,
+        錯誤說明: errorMessage
+      });
+
+      isGettingLocation.value = false;
+    },
+    {
+      enableHighAccuracy: true, // 使用高精確度（GPS）
+      timeout: 10000, // 10 秒超時
+      maximumAge: 0 // 不使用快取位置
+    }
+  );
+}
+
+const user_id = ref('7f3562f4-bb3f-4ec7-89b9-da3b4b5ff250');
+const user_name = ref('testuser');
 const form = ref({
-  id: '7f3562f4-bb3f-4ec7-89b9-da3b4b5ff250',
-  username: 'testuser',
-  latitude: 25.02180888820966,
-  longitude: 121.53551773581411,
+  id: user_id.value,
+  username: user_name.value,
+  latitude: currentLat.value,
+  longitude: currentLng.value,
   dogName: '',
   dogBreed: '',
   activities: new Set<string>([]),
@@ -85,6 +160,7 @@ const addDog = async () => {
         alert('新增狗狗資訊時發生錯誤，請稍後再試。');
       } else {
         console.log('Dog info added:', data);
+        alert('狗狗資訊新增成功！');
       }
     });
 };
@@ -136,6 +212,14 @@ const addDog = async () => {
             />
           </div>
 
+          <div>
+            <BaseLabel class="text-foreground">當前位置 *</BaseLabel>
+            <BaseInput
+              disabled
+              v-model="ownerLocation"
+              custom-class="mt-2 bg-muted border-border"
+            />
+          </div>
           <!-- 狗狗喜歡的活動 -->
           <div>
             <BaseLabel class="text-foreground">狗狗喜歡的活動</BaseLabel>

@@ -35,7 +35,8 @@ interface Event {
   request_sitter: boolean;
   preference: string;
   created_at: string;
-  sitter_name: string;
+  sitter_id: string;
+  proposer_name: string;
 }
 interface DogDetail {
   id: string;

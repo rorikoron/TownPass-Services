@@ -6,6 +6,7 @@ import BaseButton from '@/components/atoms/BaseButton.vue';
 import PageHeader from '@/components/molecules/PageHeader.vue';
 import BottomNav from '@/components/molecules/BottomNav.vue';
 import { useDogWalkingStore } from '@/stores/dogWalking';
+import { supabase } from '@/lib/supabaseClient';
 
 interface Record {
   id: string;
@@ -95,30 +96,73 @@ const filteredRecords = computed(() => {
   }));
 });
 
-const handleStartWalking = (queueId: string) => {
-  const queuedDog = walkingQueue.value.find((dog) => dog.id === queueId);
-  if (queuedDog && !queuedDog.publisherConfirmed) {
-    alert('請先等待飼主確認才能開始遛狗');
+// const handleStartWalking = (queueId: string) => {
+//   const queuedDog = walkingQueue.value.find((dog) => dog.id === queueId);
+//   if (queuedDog && !queuedDog.publisherConfirmed) {
+//     alert('請先等待飼主確認才能開始遛狗');
+//     return;
+//   }
+//   store.startWalkingFromQueue(queueId);
+// };
+const handleStartWalking = async (createdAt: string) => {
+  const result = await supabase
+    .from('event')
+    .update({ status: 'started' })
+    .eq('created_at', createdAt);
+
+  if (result.error) {
+    console.error('更新狀態錯誤:', result.error);
     return;
   }
-  store.startWalkingFromQueue(queueId);
+  alert('已開始遛狗');
+  await updateEvents();
+
+  store.startWalkingFromQueue(createdAt);
 };
 
-const handleStopWalking = () => {
-  store.stopWalkingFromQueue();
-};
+// const handleStopWalking = () => {
+//   store.stopWalkingFromQueue();
+// };
 
-const handleConfirmPublisher = (queueId: string) => {
+// const handleConfirmPublisher = (queueId: string) => {
+//   // 獲取當前發布人的帳號（模擬從 Flutter 傳入的發布人帳號）
+//   // 這裡應該從用戶認證系統或 Flutter 獲取
+//   const publisherAccountId = 'publisher-uuid-' + Math.random().toString(36).substr(2, 9);
+
+//   const result = store.confirmPublisherForQueue(queueId, publisherAccountId);
+//   if (!result) {
+//     alert('確認失敗：發布人和遛狗者不能是同一個帳號');
+//     return;
+//   }
+//   alert('發布人已確認');
+// };
+
+const handleConfirmPublisher = async (createdAt: string) => {
   // 獲取當前發布人的帳號（模擬從 Flutter 傳入的發布人帳號）
   // 這裡應該從用戶認證系統或 Flutter 獲取
-  const publisherAccountId = 'publisher-uuid-' + Math.random().toString(36).substr(2, 9);
-
-  const result = store.confirmPublisherForQueue(queueId, publisherAccountId);
+  const result = await supabase
+    .from('event')
+    .update({ status: 'active' })
+    .eq('created_at', createdAt);
   if (!result) {
     alert('確認失敗：發布人和遛狗者不能是同一個帳號');
     return;
   }
   alert('發布人已確認');
+  await updateEvents();
+};
+const handleStopWalking = async (createdAt: string) => {
+  const result = await supabase
+    .from('event')
+    .update({ status: 'completed' })
+    .eq('created_at', createdAt);
+
+  if (result.error) {
+    console.error('更新狀態錯誤:', result.error);
+    return;
+  }
+  alert('已停止遛狗');
+  await updateEvents();
 };
 
 const getStatusLabel = (status: string) => {
@@ -134,9 +178,53 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-watch(activeTab, (newTab) => {
-  console.log('Active tab changed to:', newTab);
+interface Event {
+  user_id: string;
+  user_name: string;
+  dog_name: string;
+  dog_breed: string;
+  latitude: number;
+  longitude: number;
+  activity_type: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  request_sitter: boolean;
+  preference: string;
+  created_at: string;
+  sitter_id: string;
+  proposer_name: string;
+}
+const events = ref<Event[]>([]);
+
+// replace with acctual id
+const user_id = '7f3562f4-bb3f-4ec7-89b9-da3b4b5ff250';
+
+const updateEvents = async () => {
+  const { data, error } = await supabase
+    .from('event')
+    .select('*')
+    .or('user_id.eq.' + user_id + ',sitter_id.eq.' + user_id);
+
+  if (error) {
+    console.error('データ取得エラー:', error);
+    return;
+  }
+
+  events.value = data as Event[];
+};
+onMounted(async () => {
+  await updateEvents();
 });
+function calculateMins(start_time: string, end_time: string) {
+  const start = new Date(start_time);
+  const end = new Date(end_time);
+
+  const diffMs = end - start;
+  const diffMinutes = diffMs / (1000 * 60);
+
+  return Math.round(diffMinutes);
+}
 </script>
 
 <template>
@@ -188,23 +276,25 @@ watch(activeTab, (newTab) => {
           <div v-if="activeTab === 'published'" class="space-y-4">
             <!-- 發布紀錄 -->
             <BaseCard
-              v-for="record in filteredRecords"
-              :key="record.id"
+              v-for="record in events.filter((e) => e.user_id === user_id)"
+              :key="record.created_at"
               class="border border-border bg-white overflow-hidden"
             >
               <div class="p-4 space-y-2">
                 <!-- 狗狗基本資訊 + 右上角狀態符號 -->
                 <div class="flex items-start justify-between">
                   <div>
-                    <h3 class="text-lg font-semibold text-foreground">{{ record.dogName }}</h3>
-                    <p class="text-sm text-muted-foreground">{{ record.date }}</p>
-                    <p class="text-sm text-muted-foreground">狀態: {{ record.duration }}</p>
+                    <h3 class="text-lg font-semibold text-foreground">{{ record.dog_name }}</h3>
+                    <p class="text-sm text-muted-foreground">
+                      {{ record?.start_time?.slice(0, 10) }}
+                    </p>
+                    <p class="text-sm text-muted-foreground">應徵者: {{ record.proposer_name }}</p>
                   </div>
 
                   <!-- 右上角：狀態符號 -->
                   <div class="flex-shrink-0">
                     <svg
-                      v-if="record.publisherConfirmed"
+                      v-if="record?.sitter_id?.length"
                       class="w-6 h-6 text-green-500"
                       fill="currentColor"
                       viewBox="0 0 20 20"
@@ -229,10 +319,10 @@ watch(activeTab, (newTab) => {
                 </div>
 
                 <!-- 確認按鈕 -->
-                <div v-if="!record.publisherConfirmed">
+                <div v-if="record.status === 'pending'">
                   <BaseButton
                     class="w-full py-2 text-sm bg-primary text-primary-foreground rounded"
-                    @click="handleConfirmPublisher(record.queueId)"
+                    @click="handleConfirmPublisher(record.created_at)"
                   >
                     確認
                   </BaseButton>
@@ -251,23 +341,27 @@ watch(activeTab, (newTab) => {
           <!-- 遛狗紀錄 -->
           <div v-else class="space-y-4">
             <BaseCard
-              v-for="record in filteredRecords"
-              :key="record.id"
+              v-for="event in events.filter(
+                (e) => e.sitter_id === user_id && e.status === 'completed'
+              )"
+              :key="event.created_at"
               class="border border-border bg-white overflow-hidden"
             >
               <div class="p-4 space-y-2">
                 <!-- 狗狗基本資訊 + 右上角狀態符號 -->
                 <div class="flex items-start justify-between">
                   <div>
-                    <h3 class="text-lg font-semibold text-foreground">{{ record.dogName }}</h3>
-                    <p class="text-sm text-muted-foreground">{{ record.date }}</p>
-                    <p class="text-sm text-muted-foreground">時長: {{ record.duration }}</p>
+                    <h3 class="text-lg font-semibold text-foreground">{{ event.dog_name }}</h3>
+                    <p class="text-sm text-muted-foreground">{{ event.start_time.slice(0, 10) }}</p>
+                    <p class="text-sm text-muted-foreground">
+                      時長: {{ calculateMins(event.start_time, event.end_time) }}
+                    </p>
                   </div>
 
                   <!-- 右上角：狀態圖標 -->
                   <div class="flex-shrink-0">
                     <svg
-                      v-if="record.status === 'completed'"
+                      v-if="event.status === 'completed'"
                       class="w-6 h-6 text-green-500"
                       fill="currentColor"
                       viewBox="0 0 20 20"
@@ -276,20 +370,6 @@ watch(activeTab, (newTab) => {
                         fill-rule="evenodd"
                         d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                         clip-rule="evenodd"
-                      />
-                    </svg>
-                    <svg
-                      v-else-if="record.status === 'ongoing'"
-                      class="w-6 h-6 text-blue-500 animate-spin"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
                   </div>
@@ -307,28 +387,26 @@ watch(activeTab, (newTab) => {
         <template v-else-if="activeTab === 'queue'">
           <div class="space-y-4">
             <BaseCard
-              v-for="queuedDog in walkingQueue"
-              :key="queuedDog.id"
+              v-for="event in events.filter(
+                (e) => e.sitter_id === user_id && (e.status === 'active' || e.status === 'started')
+              )"
+              :key="event.created_at"
               class="border border-border overflow-hidden transition-all duration-300"
-              :class="
-                isWalking && currentWalkingDog?.dogId === queuedDog.dogId
-                  ? 'bg-gray-300'
-                  : 'bg-white'
-              "
+              :class="event.status === 'started' ? 'bg-gray-300' : 'bg-white'"
             >
               <div class="p-4 space-y-3">
                 <!-- 狗狗基本資訊 + 右上角狀態符號 -->
                 <div class="flex items-start justify-between">
                   <div>
-                    <h3 class="text-lg font-semibold text-foreground">{{ queuedDog.dogName }}</h3>
-                    <p class="text-sm text-muted-foreground">{{ queuedDog.breed }}</p>
-                    <p class="text-sm text-muted-foreground">飼主: {{ queuedDog.ownerName }}</p>
+                    <h3 class="text-lg font-semibold text-foreground">{{ event.dog_name }}</h3>
+                    <p class="text-sm text-muted-foreground">{{ event.dog_breed }}</p>
+                    <p class="text-sm text-muted-foreground">飼主: {{ event.user_name }}</p>
                   </div>
 
                   <!-- 右上角：狀態符號 -->
                   <div class="flex-shrink-0">
                     <svg
-                      v-if="isWalking && currentWalkingDog?.dogId === queuedDog.dogId"
+                      v-if="event.status === 'started'"
                       class="w-6 h-6 text-blue-500 animate-spin"
                       fill="none"
                       stroke="currentColor"
@@ -347,17 +425,16 @@ watch(activeTab, (newTab) => {
                 <!-- 操作按鈕 -->
                 <div class="flex gap-3">
                   <BaseButton
-                    v-if="!isWalking || currentWalkingDog?.dogId !== queuedDog.dogId"
+                    v-if="event.status === 'active'"
                     class="flex-1 py-2 text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                    :disabled="!queuedDog.publisherConfirmed"
-                    @click="handleStartWalking(queuedDog.id)"
+                    @click="handleStartWalking(event.created_at)"
                   >
                     開始遛狗
                   </BaseButton>
                   <BaseButton
-                    v-else-if="isWalking && currentWalkingDog?.dogId === queuedDog.dogId"
+                    v-else-if="event.status === 'started'"
                     class="flex-1 py-2 text-sm bg-red-500 text-white hover:bg-red-600"
-                    @click="handleStopWalking"
+                    @click="handleStopWalking(event.created_at)"
                   >
                     停止
                   </BaseButton>
@@ -365,7 +442,7 @@ watch(activeTab, (newTab) => {
               </div>
             </BaseCard>
 
-            <div v-if="walkingQueue.length === 0" class="text-center py-12">
+            <div v-if="events.length === 0" class="text-center py-12">
               <p class="text-muted-foreground">遛狗清單為空</p>
             </div>
           </div>
