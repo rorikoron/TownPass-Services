@@ -13,9 +13,17 @@ import { useConnectionMessage } from '@/composables/useConnectionMessage';
 import { useHandleConnectionData } from '@/composables/useHandleConnectionData';
 
 const store = useDogWalkingStore();
-
+interface userinfoConfig {
+  data: {
+    realName: string;
+    id: string;
+  };
+}
 const handleConnectionData = (event: { data: string }) => {
-  console.log('Received data from connection:', event.data);
+  const parsed = JSON.parse(event.data);
+  console.log('Received data from connection:', event.data?.parsed);
+  user_name.value = parsed.data?.realName;
+  user_id.value = parsed.data?.data?.id;
 };
 
 useHandleConnectionData(handleConnectionData);
