@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import BaseCard from '@/components/atoms/BaseCard.vue';
 import BaseButton from '@/components/atoms/BaseButton.vue';
 import BaseLabel from '@/components/atoms/BaseLabel.vue';
 import BaseSelect from '@/components/atoms/BaseSelect.vue';
 import PageHeader from '@/components/molecules/PageHeader.vue';
 import BottomNav from '@/components/molecules/BottomNav.vue';
+import dogWalkingDetailJson from '../../public/mock/dog_walking_detail.json';
+import { useDogWalkingStore } from '@/stores/dogWalking';
 
 interface Dog {
   id: string;
@@ -15,6 +18,23 @@ interface Dog {
   owner: string;
   status: 'available' | 'walking' | 'completed';
 }
+
+interface DogDetail {
+  id: string;
+  dogName: string;
+  breed: string;
+  ownerName: string;
+  ownerLocation: string;
+  favoriteActivities: string[];
+  useCases: string[];
+  walkingTime: string;
+  description: string;
+  imageUrl: string;
+  reviews: number;
+  rating: number;
+}
+
+const store = useDogWalkingStore();
 
 const USE_CASES = [
   { label: '飼主可發佈任務讓他人代遛狗', value: 'owner' },
@@ -49,14 +69,31 @@ const selectedBreed = ref('all');
 const selectedActivities = ref<string[]>([]);
 const showResults = ref(false);
 
+// 時間篩選相關狀態
+const timeFilterType = ref<'unlimited' | 'specific'>('unlimited');
+const walkingStartDate = ref('');
+const walkingStartTime = ref('');
+const walkingEndDate = ref('');
+const walkingEndTime = ref('');
+
 const filteredDogs = computed(() => {
-  return SAMPLE_DOGS.filter((dog) => {
+  const allFiltered = SAMPLE_DOGS.filter((dog) => {
     const breedMatch = selectedBreed.value === 'all' || dog.breed === selectedBreed.value;
     const activityMatch = selectedActivities.value.length === 0 || 
                          selectedActivities.value.some(activity => dog.activities.includes(activity));
     const statusMatch = dog.status === 'available';
     return breedMatch && activityMatch && statusMatch;
   });
+  
+  // 排除已完成的遛狗紀錄中的狗狗
+  const completedDogIds = store.walkingRecords
+    .filter(record => record.status === 'completed')
+    .map(record => record.dogId);
+  
+  // 排除隊列中的狗狗
+  const queuedDogIds = store.walkingQueue.map(dog => dog.dogId);
+  
+  return allFiltered.filter(dog => !completedDogIds.includes(dog.id) && !queuedDogIds.includes(dog.id));
 });
 
 const toggleActivity = (activity: string) => {
@@ -75,10 +112,81 @@ const handleSearch = () => {
 const backToFilter = () => {
   showResults.value = false;
 };
+
+const router = useRouter();
+
+const isDetailModalOpen = ref(false);
+const selectedDog = ref<DogDetail | null>(null);
+const expandedDogId = ref<string | null>(null);
+
+const goToDogDetail = (dogId: string) => {
+  const dog = dogWalkingDetailJson.data.find((d: DogDetail) => d.id === dogId);
+  if (dog) {
+    if (expandedDogId.value === dogId) {
+      expandedDogId.value = null;
+    } else {
+      expandedDogId.value = dogId;
+      selectedDog.value = dog;
+    }
+  }
+};
+
+const closeDetailModal = () => {
+  isDetailModalOpen.value = false;
+  selectedDog.value = null;
+};
+
+const handleContactOwner = (dogName: string) => {
+  alert(`聯繫飼主: ${dogName}`);
+};
+
+// 模擬 Flutter 傳入的用戶數據
+const currentUserData = ref<{ data: string }>({ data: '' });
+
+const handleData = (event: { data: string }) => {
+  currentUserData.value = event;
+  // 從模擬數據中提取帳號 ID（這裡假設為 UUID 格式）
+  store.setCurrentUserAccountId(event.data);
+  console.log('當前用戶帳號:', event.data);
+};
+
+const useFakeHandleConnectionData = (callback: (event: { data: string }) => void) => {
+  // 模擬收到 UUID（帳號 ID），2 秒後回調
+  setTimeout(() => {
+    const fakeNfcEvent = { data: 'user-uuid-' + Math.random().toString(36).substr(2, 9) };
+    callback(fakeNfcEvent);
+  }, 2000);
+};
+
+onMounted(() => {
+  // 初始化時模擬獲取用戶帳號
+  useFakeHandleConnectionData(handleData);
+});
+
+const handleWalkingDog = (dog: Dog) => {
+  // 檢查當前用戶帳號是否已設置
+  if (!store.currentUserAccountId) {
+    alert('請先載入用戶信息');
+    return;
+  }
+  
+  store.addToQueue({
+    id: dog.id,
+    name: dog.name,
+    breed: dog.breed,
+    owner: dog.owner
+  }, store.currentUserAccountId);
+};
+
+const handleStopWalking = () => {
+  // 此功能已移至歷史頁面的遛狗清單標籤
+};
 </script>
 
 <template>
-  <div class="min-h-screen bg-background pb-24">
+  <div 
+    class="min-h-screen transition-colors duration-300 pb-24 bg-background"
+  >
     <PageHeader title="瀏覽可遛的狗狗" :step="2" />
 
     <!-- 篩選介面 -->
@@ -139,6 +247,77 @@ const backToFilter = () => {
         </div>
       </div>
 
+      <!-- 遛狗時間篩選 -->
+      <div>
+        <BaseLabel class="text-foreground mb-3 block">遛狗時間 *</BaseLabel>
+        <div class="space-y-3">
+          <label
+            class="flex items-center gap-3 p-4 rounded-lg border border-border cursor-pointer transition-colors hover:bg-muted"
+            :class="{ 'bg-primary/5 border-primary': timeFilterType === 'unlimited' }"
+          >
+            <input
+              type="radio"
+              name="timeFilter"
+              value="unlimited"
+              v-model="timeFilterType"
+              class="h-5 w-5 text-primary focus:ring-2 focus:ring-primary"
+            />
+            <span class="text-sm">不限時間</span>
+          </label>
+
+          <label
+            class="flex items-center gap-3 p-4 rounded-lg border border-border cursor-pointer transition-colors hover:bg-muted"
+            :class="{ 'bg-primary/5 border-primary': timeFilterType === 'specific' }"
+          >
+            <input
+              type="radio"
+              name="timeFilter"
+              value="specific"
+              v-model="timeFilterType"
+              class="h-5 w-5 text-primary focus:ring-2 focus:ring-primary"
+            />
+            <span class="text-sm">設定起訖時間</span>
+          </label>
+        </div>
+
+        <!-- 設定時間區間 -->
+        <div v-if="timeFilterType === 'specific'" class="mt-4 space-y-3">
+          <!-- 起始時間 -->
+          <div>
+            <BaseLabel class="text-foreground mb-2 block">起始時間 *</BaseLabel>
+            <div class="flex gap-2">
+              <input
+                v-model="walkingStartDate"
+                type="date"
+                class="flex-1 px-3 py-2 border border-border rounded bg-background text-foreground"
+              />
+              <input
+                v-model="walkingStartTime"
+                type="time"
+                class="w-24 px-3 py-2 border border-border rounded bg-background text-foreground"
+              />
+            </div>
+          </div>
+
+          <!-- 結束時間 -->
+          <div>
+            <BaseLabel class="text-foreground mb-2 block">結束時間 *</BaseLabel>
+            <div class="flex gap-2">
+              <input
+                v-model="walkingEndDate"
+                type="date"
+                class="flex-1 px-3 py-2 border border-border rounded bg-background text-foreground"
+              />
+              <input
+                v-model="walkingEndTime"
+                type="time"
+                class="w-24 px-3 py-2 border border-border rounded bg-background text-foreground"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 進行篩選按鈕 -->
       <BaseButton @click="handleSearch" class="w-full py-6 text-base font-semibold bg-primary text-primary-foreground">
         進行篩選
@@ -164,9 +343,10 @@ const backToFilter = () => {
         <BaseCard
           v-for="dog in filteredDogs"
           :key="dog.id"
-          class="border border-border"
+          class="border border-border overflow-hidden transition-all duration-300 bg-white"
         >
-          <div class="space-y-3">
+          <div class="space-y-3 p-4">
+            <!-- 原本的基本資訊 -->
             <div>
               <h3 class="text-xl font-semibold text-foreground">{{ dog.name }}</h3>
               <p class="text-sm text-muted-foreground">{{ dog.breed }}</p>
@@ -174,13 +354,93 @@ const backToFilter = () => {
             </div>
 
             <div class="flex gap-3">
-              <BaseButton class="flex-1 py-2 text-sm bg-white border border-primary text-primary" outline>
-                詳情
+              <BaseButton 
+                class="flex-1 py-2 text-sm bg-white border border-primary text-primary" 
+                outline
+                @click="goToDogDetail(dog.id)"
+              >
+                {{ expandedDogId === dog.id ? '隱藏詳情' : '詳情' }}
               </BaseButton>
-              <BaseButton class="flex-1 py-2 text-sm bg-primary text-primary-foreground">
-                遛狗
+              <BaseButton 
+                class="flex-1 py-2 text-sm bg-primary text-primary-foreground"
+                @click="handleWalkingDog(dog)"
+              >
+                加入遛狗清單
               </BaseButton>
             </div>
+
+            <!-- 分界線 + 展開詳情 -->
+            <transition
+              name="expand"
+              @enter="(el: any) => el.style.height = el.scrollHeight + 'px'"
+              @leave="(el: any) => el.style.height = 0"
+            >
+              <div v-if="expandedDogId === dog.id" class="overflow-hidden">
+                <!-- 分界線 -->
+                <div class="border-t border-border my-3"></div>
+
+                <!-- 詳細資訊部分 -->
+                <div v-if="selectedDog && selectedDog.id === dog.id" class="space-y-4 pt-3">
+                  <!-- 飼主資訊 -->
+                  <div>
+                    <p class="text-xs text-muted-foreground font-semibold mb-1">飼主資訊</p>
+                    <div class="bg-muted/30 rounded p-3 space-y-2">
+                      <div>
+                        <p class="text-xs text-muted-foreground">飼主名字</p>
+                        <p class="text-foreground font-semibold">{{ selectedDog.ownerName }}</p>
+                      </div>
+                      <div>
+                        <p class="text-xs text-muted-foreground">飼主地點</p>
+                        <p class="text-foreground font-semibold">{{ selectedDog.ownerLocation }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 喜愛的運動 -->
+                  <div>
+                    <p class="text-xs text-muted-foreground font-semibold mb-1">喜愛的運動</p>
+                    <div class="flex flex-wrap gap-2">
+                      <span
+                        v-for="activity in selectedDog.favoriteActivities"
+                        :key="activity"
+                        class="px-3 py-1 bg-primary/10 text-primary-500 rounded-full text-xs font-medium"
+                      >
+                        {{ activity }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- 遛狗時間 -->
+                  <div>
+                    <p class="text-xs text-muted-foreground font-semibold mb-1">遛狗時間</p>
+                    <p class="text-foreground text-sm bg-muted/30 rounded p-2">{{ selectedDog.walkingTime }}</p>
+                  </div>
+
+                  <!-- 評分 -->
+                  <div>
+                    <p class="text-xs text-muted-foreground font-semibold mb-1">評分</p>
+                    <p class="text-foreground">
+                      <span class="text-primary-500 font-semibold text-lg">{{ selectedDog.rating }}</span>
+                      <span class="text-muted-foreground text-sm"> ({{ selectedDog.reviews }} 則評論)</span>
+                    </p>
+                  </div>
+
+                  <!-- 描述 -->
+                  <div>
+                    <p class="text-xs text-muted-foreground font-semibold mb-1">簡介</p>
+                    <p class="text-foreground text-sm leading-relaxed">{{ selectedDog.description }}</p>
+                  </div>
+
+                  <!-- 聯繫按鈕 -->
+                  <BaseButton 
+                    class="w-full py-2 text-sm bg-primary text-primary-foreground mt-2"
+                    @click="handleContactOwner(selectedDog.dogName)"
+                  >
+                    聯繫飼主
+                  </BaseButton>
+                </div>
+              </div>
+            </transition>
           </div>
         </BaseCard>
 
@@ -195,6 +455,17 @@ const backToFilter = () => {
 </template>
 
 <style scoped>
+/* 正在遛狗狀態動畫 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
 /* 自定義 radio 和 checkbox 樣式 */
 input[type="radio"],
 input[type="checkbox"] {
@@ -250,5 +521,22 @@ input[type="checkbox"]:checked::after {
   color: white;
   font-size: 12px;
   font-weight: bold;
+}
+
+/* 展開動畫 */
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.expand-enter-from {
+  height: 0 !important;
+  opacity: 0;
+}
+
+.expand-leave-to {
+  height: 0 !important;
+  opacity: 0;
 }
 </style>
