@@ -8,13 +8,17 @@ import BaseLabel from '@/components/atoms/BaseLabel.vue';
 import BaseSelect from '@/components/atoms/BaseSelect.vue';
 import PageHeader from '@/components/molecules/PageHeader.vue';
 import BottomNav from '@/components/molecules/BottomNav.vue';
-import { Plus, X } from 'lucide-vue-next';
-import FormPreview from '@/components/organisms/FormPreview.vue';
 import { supabase } from '@/lib/supabaseClient';
-import { AlertCircle } from 'lucide-vue-next';
+import { useConnectionMessage } from '@/composables/useConnectionMessage';
 
 const store = useDogWalkingStore();
 
+const handleConnectionData = (event: { data: string }) => {
+  console.log('Received data from connection:', event.data);
+};
+
+useHandleConnectionData(handleConnectionData);
+useConnectionMessage('userinfo', null);
 onMounted(async () => {
   await geoFindMe();
 });
