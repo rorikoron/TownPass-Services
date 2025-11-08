@@ -266,7 +266,7 @@ const getStatusLabel = (status: string) => {
         </template>
 
         <!-- 遛狗清單 -->
-        <template v-else-if="activeTab === 'queue'" class="space-y-4">
+        <template v-else-if="activeTab === 'queue'">
           <div class="space-y-4">
             <BaseCard
               v-for="queuedDog in walkingQueue"
