@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const cardClass = computed(() => {
-  const base = 'bg-card text-card-foreground rounded-xl border shadow-sm';
+  const base = 'bg-card text-card-foreground rounded-xl border';
   const padding = props.noPadding ? '' : 'p-6';
   return `${base} ${padding}`;
 });
