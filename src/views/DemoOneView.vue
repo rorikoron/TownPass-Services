@@ -19,8 +19,8 @@ const handleConnectionData = (event: { data: string }) => {
 };
 
 useHandleConnectionData(handleConnectionData);
-useConnectionMessage('userinfo', null);
 onMounted(async () => {
+  useConnectionMessage('userinfo', null);
   await geoFindMe();
 });
 const DOG_BREEDS = [
