@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import BaseCard from '@/components/atoms/BaseCard.vue';
 import BaseButton from '@/components/atoms/BaseButton.vue';
@@ -24,9 +24,30 @@ const store = useDogWalkingStore();
 const { walkingRecords, walkingQueue, isWalking, currentWalkingDog } = storeToRefs(store);
 
 const HISTORY_RECORDS: Record[] = [
-  { id: '1', dogName: '小Q', date: '2025-01-08', duration: '45 分鐘', status: 'completed', type: 'published' },
-  { id: '2', dogName: '旺財', date: '2025-01-07', duration: '1 小時', status: 'completed', type: 'walked' },
-  { id: '3', dogName: '小白', date: '2025-01-06', duration: '30 分鐘', status: 'ongoing', type: 'published' }
+  {
+    id: '1',
+    dogName: '小Q',
+    date: '2025-01-08',
+    duration: '45 分鐘',
+    status: 'completed',
+    type: 'published'
+  },
+  {
+    id: '2',
+    dogName: '旺財',
+    date: '2025-01-07',
+    duration: '1 小時',
+    status: 'completed',
+    type: 'walked'
+  },
+  {
+    id: '3',
+    dogName: '小白',
+    date: '2025-01-06',
+    duration: '30 分鐘',
+    status: 'ongoing',
+    type: 'published'
+  }
 ];
 
 const activeTab = ref<'published' | 'walked' | 'queue'>('walked');
@@ -34,7 +55,7 @@ const activeTab = ref<'published' | 'walked' | 'queue'>('walked');
 // 合併遛狗紀錄和已發佈紀錄
 const mergedRecords = computed(() => {
   console.log('walkingRecords.value:', walkingRecords.value);
-  const walked = walkingRecords.value.map(record => {
+  const walked = walkingRecords.value.map((record) => {
     console.log('Processing record:', record);
     return {
       id: record.id,
@@ -49,8 +70,8 @@ const mergedRecords = computed(() => {
       publisherConfirmed: true
     };
   });
-  
-  const published = HISTORY_RECORDS.filter(r => r.type === 'published');
+
+  const published = HISTORY_RECORDS.filter((r) => r.type === 'published');
   console.log('merged records:', { walked, published });
   return { walked, published };
 });
@@ -60,7 +81,7 @@ const filteredRecords = computed(() => {
     return mergedRecords.value.walked;
   }
   // 發布紀錄：顯示隊列中的狗狗
-  return walkingQueue.value.map(queuedDog => ({
+  return walkingQueue.value.map((queuedDog) => ({
     id: queuedDog.id,
     dogName: queuedDog.dogName,
     breed: queuedDog.breed,
@@ -75,7 +96,7 @@ const filteredRecords = computed(() => {
 });
 
 const handleStartWalking = (queueId: string) => {
-  const queuedDog = walkingQueue.value.find(dog => dog.id === queueId);
+  const queuedDog = walkingQueue.value.find((dog) => dog.id === queueId);
   if (queuedDog && !queuedDog.publisherConfirmed) {
     alert('請先等待飼主確認才能開始遛狗');
     return;
@@ -91,7 +112,7 @@ const handleConfirmPublisher = (queueId: string) => {
   // 獲取當前發布人的帳號（模擬從 Flutter 傳入的發布人帳號）
   // 這裡應該從用戶認證系統或 Flutter 獲取
   const publisherAccountId = 'publisher-uuid-' + Math.random().toString(36).substr(2, 9);
-  
+
   const result = store.confirmPublisherForQueue(queueId, publisherAccountId);
   if (!result) {
     alert('確認失敗：發布人和遛狗者不能是同一個帳號');
@@ -112,6 +133,10 @@ const getStatusLabel = (status: string) => {
       return status;
   }
 };
+
+watch(activeTab, (newTab) => {
+  console.log('Active tab changed to:', newTab);
+});
 </script>
 
 <template>
@@ -175,7 +200,7 @@ const getStatusLabel = (status: string) => {
                     <p class="text-sm text-muted-foreground">{{ record.date }}</p>
                     <p class="text-sm text-muted-foreground">狀態: {{ record.duration }}</p>
                   </div>
-                  
+
                   <!-- 右上角：狀態符號 -->
                   <div class="flex-shrink-0">
                     <svg
@@ -184,7 +209,11 @@ const getStatusLabel = (status: string) => {
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
-                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      <path
+                        fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clip-rule="evenodd"
+                      />
                     </svg>
                     <svg
                       v-else
@@ -243,7 +272,11 @@ const getStatusLabel = (status: string) => {
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
-                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      <path
+                        fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clip-rule="evenodd"
+                      />
                     </svg>
                     <svg
                       v-else-if="record.status === 'ongoing'"
@@ -252,7 +285,12 @@ const getStatusLabel = (status: string) => {
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
                     </svg>
                   </div>
                 </div>
@@ -272,7 +310,11 @@ const getStatusLabel = (status: string) => {
               v-for="queuedDog in walkingQueue"
               :key="queuedDog.id"
               class="border border-border overflow-hidden transition-all duration-300"
-              :class="isWalking && currentWalkingDog?.dogId === queuedDog.dogId ? 'bg-gray-300' : 'bg-white'"
+              :class="
+                isWalking && currentWalkingDog?.dogId === queuedDog.dogId
+                  ? 'bg-gray-300'
+                  : 'bg-white'
+              "
             >
               <div class="p-4 space-y-3">
                 <!-- 狗狗基本資訊 + 右上角狀態符號 -->
@@ -282,7 +324,7 @@ const getStatusLabel = (status: string) => {
                     <p class="text-sm text-muted-foreground">{{ queuedDog.breed }}</p>
                     <p class="text-sm text-muted-foreground">飼主: {{ queuedDog.ownerName }}</p>
                   </div>
-                  
+
                   <!-- 右上角：狀態符號 -->
                   <div class="flex-shrink-0">
                     <svg
@@ -292,14 +334,19 @@ const getStatusLabel = (status: string) => {
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
                     </svg>
                   </div>
                 </div>
 
                 <!-- 操作按鈕 -->
                 <div class="flex gap-3">
-                  <BaseButton 
+                  <BaseButton
                     v-if="!isWalking || currentWalkingDog?.dogId !== queuedDog.dogId"
                     class="flex-1 py-2 text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                     :disabled="!queuedDog.publisherConfirmed"
@@ -307,7 +354,7 @@ const getStatusLabel = (status: string) => {
                   >
                     開始遛狗
                   </BaseButton>
-                  <BaseButton 
+                  <BaseButton
                     v-else-if="isWalking && currentWalkingDog?.dogId === queuedDog.dogId"
                     class="flex-1 py-2 text-sm bg-red-500 text-white hover:bg-red-600"
                     @click="handleStopWalking"

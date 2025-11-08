@@ -9,6 +9,8 @@ import BaseSelect from '@/components/atoms/BaseSelect.vue';
 import PageHeader from '@/components/molecules/PageHeader.vue';
 import BottomNav from '@/components/molecules/BottomNav.vue';
 import { Plus, X } from 'lucide-vue-next';
+import FormPreview from '@/components/organisms/FormPreview.vue';
+import { supabase } from '@/lib/supabaseClient';
 
 const store = useDogWalkingStore();
 
@@ -37,13 +39,54 @@ const USE_CASES = [
 // 額外的欄位（根據截圖需求）
 const ownerName = ref('');
 const ownerLocation = ref('');
-const timeOption = ref('unlimited'); // 'unlimited' or 'scheduled'
-const duration = ref(''); // 遛狗時長
-const startTime = ref('');
-const endTime = ref('');
+
+const form = ref({
+  id: '7f3562f4-bb3f-4ec7-89b9-da3b4b5ff250',
+  username: 'testuser',
+  latitude: 25.02180888820966,
+  longitude: 121.53551773581411,
+  dogName: '',
+  dogBreed: '',
+  activities: new Set<string>([]),
+  startTime: '',
+  endTime: '',
+  dogPreferences: ''
+});
 
 const getUseCaseLabel = (value: string) => {
-  return USE_CASES.find(uc => uc.value === value)?.label || value;
+  return USE_CASES.find((uc) => uc.value === value)?.label || value;
+};
+
+const addDog = async () => {
+  if (!form.value.dogName || !form.value.dogBreed || !form.value.startTime || !form.value.endTime) {
+    alert('請填寫所有必填欄位');
+    return;
+  }
+
+  await supabase
+    .from('event')
+    .insert([
+      {
+        user_id: form.value.id,
+        user_name: form.value.username,
+        dog_name: form.value.dogName,
+        dog_breed: form.value.dogBreed,
+        activity_type: Array.from(form.value.activities).join(','),
+        start_time: form.value.startTime,
+        end_time: form.value.endTime,
+        preference: form.value.dogPreferences,
+        latitude: form.value.latitude,
+        longitude: form.value.longitude
+      }
+    ])
+    .then(({ data, error }) => {
+      if (error) {
+        console.error('Error inserting dog info:', error);
+        alert('新增狗狗資訊時發生錯誤，請稍後再試。');
+      } else {
+        console.log('Dog info added:', data);
+      }
+    });
 };
 </script>
 
@@ -55,32 +98,22 @@ const getUseCaseLabel = (value: string) => {
       <!-- 狗狗基本資訊 -->
       <BaseCard class="p-6 border border-border bg-white shadow-sm">
         <h2 class="text-lg font-semibold text-foreground mb-4">狗狗基本資訊</h2>
-        
+
         <div class="space-y-4">
           <!-- 飼主名字和狗狗名字 (並排) -->
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <BaseLabel class="text-foreground">飼主名字 *</BaseLabel>
-              <BaseInput
-                v-model="ownerName"
-                type="text"
-                placeholder="輸入飼主名字"
-                class="mt-2 bg-muted border-border"
-              />
-            </div>
-            <div>
-              <BaseLabel class="text-foreground">狗狗名字 *</BaseLabel>
-              <BaseInput
-                v-model="store.currentDog.name"
-                type="text"
-                placeholder="輸入狗狗名字"
-                class="mt-2 bg-muted border-border"
-              />
-            </div>
+          <div class="space-x-4">
+            <BaseLabel class="text-foreground">狗狗名字 *</BaseLabel>
+            <BaseInput
+              required
+              v-model="form.dogName"
+              type="text"
+              placeholder="輸入狗狗名字"
+              class="mt-2 bg-muted border-border"
+            />
           </div>
 
           <!-- 飼主地點 -->
-          <div>
+          <!-- <div class="space-x-4">
             <BaseLabel class="text-foreground">飼主地點 *</BaseLabel>
             <BaseInput
               v-model="ownerLocation"
@@ -88,14 +121,15 @@ const getUseCaseLabel = (value: string) => {
               placeholder="輸入飼主地點"
               class="mt-2 bg-muted border-border"
             />
-          </div>
+          </div> -->
 
           <!-- 狗狗品種 -->
           <div>
             <BaseLabel class="text-foreground">狗狗品種 *</BaseLabel>
             <BaseSelect
+              required
               select-id="dogBreed"
-              v-model="store.currentDog.breed"
+              v-model="form.dogBreed"
               :options="DOG_BREEDS"
               default-selected="選擇品種"
               custom-class="mt-2 bg-muted border-border"
@@ -114,8 +148,12 @@ const getUseCaseLabel = (value: string) => {
                 <input
                   type="checkbox"
                   :value="activity.value"
-                  :checked="store.currentDog.activities?.includes(activity.value)"
-                  @change="store.toggleActivity(activity.value)"
+                  @change="
+                    (e) =>
+                      e
+                        ? form.activities.add(activity.value)
+                        : form.activities.delete(activity.value)
+                  "
                   class="h-5 w-5 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary"
                 />
                 <span class="font-normal">{{ activity.label }}</span>
@@ -123,59 +161,12 @@ const getUseCaseLabel = (value: string) => {
             </div>
           </div>
 
-          <!-- 使用場景 -->
-          <div>
-            <BaseLabel class="text-foreground">使用場景 *</BaseLabel>
-            <BaseSelect
-              select-id="dogUseCase"
-              v-model="store.currentDog.useCase"
-              :options="USE_CASES"
-              default-selected="選擇使用場景"
-              custom-class="mt-2 bg-muted border-border"
-            />
-          </div>
-
-          <!-- 遛狗時間 -->
-          <div>
-            <BaseLabel class="text-foreground">遛狗時間 *</BaseLabel>
-            <div class="mt-3 space-y-2">
-              <label class="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  value="unlimited"
-                  v-model="timeOption"
-                  class="h-5 w-5 text-primary focus:ring-2 focus:ring-primary"
-                />
-                <span class="font-normal">不限時間</span>
-              </label>
-              <label class="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  value="scheduled"
-                  v-model="timeOption"
-                  class="h-5 w-5 text-primary focus:ring-2 focus:ring-primary"
-                />
-                <span class="font-normal">設定起訖時間</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- 遛狗時長（當選擇"不限時間"時顯示） -->
-          <div v-if="timeOption === 'unlimited'">
-            <BaseLabel class="text-foreground">遛狗時長 (分鐘) *</BaseLabel>
-            <BaseInput
-              v-model="duration"
-              type="text"
-              placeholder="輸入遛狗時長，如 30"
-              class="mt-2 bg-muted border-border"
-            />
-          </div>
-
           <!-- 起始時間（當選擇"設定起訖時間"時顯示） -->
-          <div v-if="timeOption === 'scheduled'">
+          <div class="space-x-4">
             <BaseLabel class="text-foreground">起始時間 *</BaseLabel>
             <BaseInput
-              v-model="startTime"
+              required
+              v-model="form.startTime"
               type="datetime-local"
               placeholder="年 / 月 / 日 ----:--"
               class="mt-2 bg-muted border-border"
@@ -183,19 +174,30 @@ const getUseCaseLabel = (value: string) => {
           </div>
 
           <!-- 結束時間（當選擇"設定起訖時間"時顯示） -->
-          <div v-if="timeOption === 'scheduled'">
+          <div class="space-x-4">
             <BaseLabel class="text-foreground">結束時間 *</BaseLabel>
             <BaseInput
-              v-model="endTime"
+              required
+              v-model="form.endTime"
               type="datetime-local"
               placeholder="年 / 月 / 日 ----:--"
               class="mt-2 bg-muted border-border"
             />
           </div>
 
+          <div class="space-x-4">
+            <BaseLabel class="text-foreground">備註</BaseLabel>
+            <BaseInput
+              v-model="form.dogPreferences"
+              type="textarea"
+              placeholder="輸入狗狗備注"
+              class="mt-2 bg-muted border-border"
+            />
+          </div>
+
           <!-- 新增狗狗按鈕 -->
           <BaseButton
-            @click="store.addDog"
+            @click="addDog"
             class="w-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2"
           >
             <Plus class="w-4 h-4" />
@@ -207,11 +209,7 @@ const getUseCaseLabel = (value: string) => {
       <!-- 已新增的狗狗列表 -->
       <div v-if="store.dogs.length > 0" class="space-y-3">
         <h3 class="font-semibold text-foreground">待發佈狗狗 ({{ store.dogs.length }})</h3>
-        <BaseCard
-          v-for="dog in store.dogs"
-          :key="dog.id"
-          class="p-4 bg-muted border border-border"
-        >
+        <BaseCard v-for="dog in store.dogs" :key="dog.id" class="p-4 bg-muted border border-border">
           <div class="flex justify-between items-start gap-4">
             <div class="flex-1">
               <h4 class="font-semibold text-foreground">{{ dog.name }}</h4>
@@ -235,15 +233,6 @@ const getUseCaseLabel = (value: string) => {
           </div>
         </BaseCard>
       </div>
-
-      <!-- 發佈按鈕 -->
-      <BaseButton
-        @click="store.publishDogs"
-        :disabled="store.dogs.length === 0"
-        class="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-base font-semibold"
-      >
-        發佈 {{ store.dogs.length > 0 ? `(${store.dogs.length} 隻)` : '' }}
-      </BaseButton>
     </div>
 
     <BottomNav />
@@ -252,8 +241,8 @@ const getUseCaseLabel = (value: string) => {
 
 <style scoped>
 /* 自定義 checkbox 和 radio 樣式 */
-input[type="checkbox"],
-input[type="radio"] {
+input[type='checkbox'],
+input[type='radio'] {
   appearance: none;
   -webkit-appearance: none;
   display: inline-block;
@@ -262,8 +251,8 @@ input[type="radio"] {
   flex-shrink: 0;
 }
 
-input[type="checkbox"]::before,
-input[type="radio"]::before {
+input[type='checkbox']::before,
+input[type='radio']::before {
   content: '';
   display: block;
   width: 100%;
@@ -272,21 +261,21 @@ input[type="radio"]::before {
   background-color: white;
 }
 
-input[type="checkbox"]::before {
+input[type='checkbox']::before {
   border-radius: 4px;
 }
 
-input[type="radio"]::before {
+input[type='radio']::before {
   border-radius: 50%;
 }
 
-input[type="checkbox"]:checked::before,
-input[type="radio"]:checked::before {
+input[type='checkbox']:checked::before,
+input[type='radio']:checked::before {
   background-color: #9c27b0;
   border-color: #9c27b0;
 }
 
-input[type="checkbox"]:checked::after {
+input[type='checkbox']:checked::after {
   content: '✓';
   position: absolute;
   top: 50%;
@@ -297,7 +286,7 @@ input[type="checkbox"]:checked::after {
   font-weight: bold;
 }
 
-input[type="radio"]:checked::after {
+input[type='radio']:checked::after {
   content: '';
   position: absolute;
   top: 50%;
