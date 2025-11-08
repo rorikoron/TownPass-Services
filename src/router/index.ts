@@ -46,6 +46,9 @@ import FeePaymentScanView from '@/views/FeePaymentScanView.vue';
 import FeePaymentStepView from '@/views/FeePaymentStepView.vue';
 import FeePaymentFinishedView from '@/views/FeePaymentFinishedView.vue';
 import DemoOneView from '@/views/DemoOneView.vue';
+import DogWalkingBrowseView from '@/views/DogWalkingBrowseView.vue';
+import DogWalkingInstantView from '@/views/DogWalkingInstantView.vue';
+import DogWalkingHistoryView from '@/views/DogWalkingHistoryView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -409,7 +412,31 @@ const router = createRouter({
       name: 'demo-one',
       component: DemoOneView,
       meta: {
-        title: 'Microservice Demo 1'
+        title: '發佈狗狗資訊'
+      }
+    },
+    {
+      path: '/browse',
+      name: 'browse',
+      component: DogWalkingBrowseView,
+      meta: {
+        title: '瀏覽可遛的狗狗'
+      }
+    },
+    {
+      path: '/instant',
+      name: 'instant',
+      component: DogWalkingInstantView,
+      meta: {
+        title: '附近可遛的狗狗'
+      }
+    },
+    {
+      path: '/history',
+      name: 'history',
+      component: DogWalkingHistoryView,
+      meta: {
+        title: '遛狗紀錄'
       }
     }
   ]
