@@ -268,6 +268,9 @@ function updateMarkers() {
     });
 
     marker.addListener('click', () => {
+      // 設置選中的事件 ID
+      selectedEventId.value = event.event_id;
+      
       // 生成活動圖片（使用 event_id 來確保每個活動有固定的圖片）
       const avatar = event.image_url || event.image || `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(event.title || 'event-' + event.event_id)}`;
       
@@ -407,14 +410,14 @@ const refreshData = async () => {
     </div>
   </div>
 
-  <!-- 活動列表 -->
-  <div class="px-4 py-6 space-y-3 bg-background">
-    <h3 class="font-semibold text-foreground">附近的遛狗活動</h3>
+  <!-- 活動列表 - 只顯示選中的事件 -->
+  <div v-if="selectedEventId" class="px-4 py-6 space-y-3 bg-background">
+    <h3 class="font-semibold text-foreground">活動詳情</h3>
     
-    <!-- 從 Supabase 抓取的活動 -->
+    <!-- 顯示選中的活動 -->
     <template v-if="events.length > 0">
       <BaseCard 
-        v-for="event in events" 
+        v-for="event in events.filter(e => e.event_id === selectedEventId)" 
         :key="event.event_id" 
         class="border border-border cursor-pointer transition-all"
         :class="{ 'ring-2 ring-primary': selectedEventId === event.event_id }"
@@ -460,10 +463,17 @@ const refreshData = async () => {
           </div>
         </div>
 
+        <!-- 預約按鈕 - 顯示在卡片基本資訊下方 -->
+        <div class="mt-4">
+          <BaseButton class="w-full" variant="primary" @click.stop="bookEvent(event)">
+            預約 {{ event.title || '活動' }}
+          </BaseButton>
+        </div>
+
         <!-- 展開的詳細資訊 -->
         <div v-if="selectedEventId === event.event_id" class="mt-4 pt-4 border-t border-border space-y-3">
           <div v-if="event.park_name" class="flex items-start gap-2">
-            <span class="text-base">📍</span>
+            <span class="text-base"></span>
             <div class="flex-1">
               <p class="text-sm font-medium text-foreground">地點</p>
               <p class="text-sm text-muted-foreground">{{ event.park_name }}{{ event.district ? ` (${event.district})` : '' }}</p>
@@ -471,7 +481,7 @@ const refreshData = async () => {
           </div>
 
           <div v-if="event.start_time" class="flex items-start gap-2">
-            <span class="text-base">🕐</span>
+            <span class="text-base"></span>
             <div class="flex-1">
               <p class="text-sm font-medium text-foreground">開始時間</p>
               <p class="text-sm text-muted-foreground">{{ new Date(event.start_time).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) }}</p>
@@ -479,7 +489,7 @@ const refreshData = async () => {
           </div>
 
           <div v-if="event.end_time" class="flex items-start gap-2">
-            <span class="text-base">⏰</span>
+            <span class="text-base"></span>
             <div class="flex-1">
               <p class="text-sm font-medium text-foreground">結束時間</p>
               <p class="text-sm text-muted-foreground">{{ new Date(event.end_time).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) }}</p>
@@ -487,18 +497,11 @@ const refreshData = async () => {
           </div>
 
           <div v-if="event.description" class="flex items-start gap-2">
-            <span class="text-base">📝</span>
+            <span class="text-base"></span>
             <div class="flex-1">
               <p class="text-sm font-medium text-foreground">活動說明</p>
               <p class="text-sm text-muted-foreground leading-relaxed">{{ event.description }}</p>
             </div>
-          </div>
-
-          <!-- 預約按鈕 -->
-          <div class="pt-2">
-            <BaseButton class="w-full" variant="primary" @click.stop="bookEvent(event)">
-              預約 {{ event.title || '活動' }}
-            </BaseButton>
           </div>
         </div>
       </BaseCard>
