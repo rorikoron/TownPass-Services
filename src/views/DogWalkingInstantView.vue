@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useGoogleMapsStore } from '@/stores/googleMaps';
+import { useDogWalkingStore } from '@/stores/dogWalking';
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
 import BaseCard from '@/components/atoms/BaseCard.vue';
 import BaseButton from '@/components/atoms/BaseButton.vue';
 import BottomNav from '@/components/molecules/BottomNav.vue';
 import { supabase } from '@/lib/supabaseClient';
 
+const router = useRouter();
 const googleMapsStore = useGoogleMapsStore();
+const dogWalkingStore = useDogWalkingStore();
 
 let map: google.maps.Map | null = null;
 let selfMarker: google.maps.Marker | null = null;
@@ -25,6 +29,8 @@ const selectedEventId = ref<string | null>(null);
 const isRefreshing = ref(false);
 const activeTab = ref<'parks' | 'cafes'>('parks'); // 當前標籤：公園或咖啡廳
 const currentDistrict = ref<string>(''); // 使用者所在的區
+const showScrollHint = ref(false); // 控制下拉提示的顯示
+const bookedEventIds = ref<Set<string>>(new Set()); // 追蹤已預約的事件 ID
 
 /** 目前位置（預設信義區） */
 const currentLocation = ref<{ lat: number; lng: number }>({
@@ -70,12 +76,12 @@ async function getCurrentDistrict() {
 
 /** --------- 地圖初始化 --------- */
 
-/** 從 Supabase 抓取活動資料（包含關聯的 park 經緯度）並計算距離 */
+/** 從 Supabase 抓取活動資料並計算距離 */
 async function fetchEvents() {
   const { data: eventsData, error } = await supabase
     .from('event')
     .select('*')
-    .eq('status', 'active');
+    .in('status', ['active', 'pending']);
   
   if (error) {
     console.error('Error fetching events:', error);
@@ -86,35 +92,14 @@ async function fetchEvents() {
     events.value = [];
     return;
   }
-  
-  // 抓取所有相關的 park 資料
-  const parkIds = eventsData.map(e => e.park_id).filter(Boolean);
-  const { data: parksData, error: parksError } = await supabase
-    .from('park')
-    .select('*')
-    .in('park_id', parkIds);
-  
-  if (parksError) {
-    console.error('Error fetching parks:', parksError);
-    return;
-  }
-  
-  // 建立 park_id 到 park 的對應
-  const parkMap = new Map(parksData?.map(p => [p.park_id, p]) || []);
-  
-  // 合併 event 和 park 資料
-  const data = eventsData.map(event => ({
-    ...event,
-    park: parkMap.get(event.park_id)
-  }));
 
   // 計算每個活動與目前位置的距離
-  const eventsWithDistance = data
+  const eventsWithDistance = eventsData
     .map((event) => {
-      const park = event.park as any;
-      if (!park || !park.latitude || !park.longitude) return null;
+      // 新的資料表結構中，經緯度直接存在 event 表中
+      if (!event.latitude || !event.longitude) return null;
       
-      const eventLatLng = new google.maps.LatLng(park.latitude, park.longitude);
+      const eventLatLng = new google.maps.LatLng(event.latitude, event.longitude);
       const currentLatLng = new google.maps.LatLng(
         currentLocation.value.lat,
         currentLocation.value.lng
@@ -122,12 +107,26 @@ async function fetchEvents() {
       const distance = kmDistance(eventLatLng, currentLatLng);
       
       return {
-        ...event,
-        latitude: park.latitude,
-        longitude: park.longitude,
-        park_name: park.name,
-        district: park.district,
-        distance
+        event_id: event.event_id,
+        user_id: event.user_id,
+        user_name: event.user_name,
+        dog_name: event.dog_name,
+        dog_breed: event.dog_breed,
+        activity_type: event.activity_type,
+        start_time: event.start_time,
+        end_time: event.end_time,
+        status: event.status,
+        request_sitter: event.request_sitter,
+        preference: event.preference,
+        sitter_id: event.sitter_id,
+        sitter_name: event.sitter_name,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        distance,
+        // 為了顯示相容性，設定預設值
+        title: `${event.user_name || '使用者'} 的 ${event.dog_name} ${event.activity_type || '遛狗'}活動`,
+        description: event.preference || `與 ${event.dog_name}${event.dog_breed ? ` (${event.dog_breed})` : ''} 一起${event.activity_type || '遛狗'}`,
+        image_url: null
       };
     })
     .filter((event): event is NonNullable<typeof event> => event !== null)
@@ -342,25 +341,38 @@ function updateMarkers() {
       // 設置選中的事件 ID
       selectedEventId.value = event.event_id;
       
-      // 生成活動圖片（使用 event_id 來確保每個活動有固定的圖片）
-      const avatar = event.image_url || event.image || `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(event.title || 'event-' + event.event_id)}`;
+      // 第一次點擊標記時顯示下拉提示，3秒後自動消失
+      if (!showScrollHint.value) {
+        showScrollHint.value = true;
+        setTimeout(() => {
+          showScrollHint.value = false;
+        }, 3000);
+      }
       
-      // 建立標籤陣列（地點、類型等）
+      // 生成活動圖片（使用 dog_name 作為頭像種子）
+      const avatar = event.image_url || `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(event.dog_name || 'dog-' + event.event_id)}`;
+      
+      // 建立標籤陣列
       const tags = [];
-      if (event.park_name) tags.push(event.park_name);
+      if (event.dog_breed) tags.push(event.dog_breed);
       if (event.activity_type) tags.push(event.activity_type);
-      if (event.breed_prefer) tags.push(event.breed_prefer);
+      if (event.request_sitter) tags.push('徵求保姆');
 
       const html = `
-        <div style="display:flex;gap:12px;align-items:center;max-width:280px">
-          <img src="${avatar}" alt="${event.title}" width="56" height="56" style="border-radius:50%;" />
-          <div style="flex:1;">
-            <div style="font-weight:700;font-size:16px;margin-bottom:4px">${event.title || '未命名活動'}</div>
-            <div style="color:#666;font-size:13px;margin-bottom:6px">${event.description || event.park_name || '歡迎參加遛狗活動'}</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
-              ${tags.map((tag) => `<span style="font-size:12px;border:1px solid #2EB6C7;color:#2EB6C7;border-radius:999px;padding:2px 8px">${tag}</span>`).join('')}
+        <div style="display:flex;gap:16px;align-items:start;max-width:320px;padding:8px;">
+          <img src="${avatar}" alt="${event.dog_name}" width="64" height="64" style="border-radius:50%;object-fit:cover;flex-shrink:0;" />
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:17px;margin-bottom:6px;color:#1a1a1a;line-height:1.3;">${event.title}</div>
+            <div style="color:#666;font-size:14px;margin-bottom:8px;line-height:1.4;">${event.description}</div>
+            ${tags.length > 0 ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+              ${tags.map((tag) => `<span style="font-size:11px;border:1px solid #2EB6C7;color:#2EB6C7;border-radius:12px;padding:3px 10px;font-weight:500;">${tag}</span>`).join('')}
+            </div>` : ''}
+            <div style="display:flex;align-items:center;gap:4px;color:#2EB6C7;font-size:13px;font-weight:600;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#2EB6C7">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              <span>距離 ${event.distance.toFixed(1)} 公里</span>
             </div>
-            <div style="margin-top:8px;color:#777;font-size:12px">距離你約 ${event.distance} 公里</div>
           </div>
         </div>
       `;
@@ -423,7 +435,24 @@ watch(events, updateMarkers);
 
 /** 預約活動 */
 const bookEvent = (event: any) => {
-  alert(`預約 ${event.title || '活動'}`);
+  // 檢查是否已預約
+  if (bookedEventIds.value.has(event.event_id)) {
+    return;
+  }
+  
+  // 將活動加入到遛狗清單
+  dogWalkingStore.addToQueue(
+    {
+      id: event.event_id,
+      name: event.dog_name || '未命名',
+      breed: event.dog_breed || '未知品種',
+      owner: event.user_name || '未知飼主'
+    },
+    'current-user-id' // TODO: 替換成實際的使用者 ID
+  );
+  
+  // 標記為已預約
+  bookedEventIds.value.add(event.event_id);
 };
 
 /** 重新抓取資料 */
@@ -483,7 +512,7 @@ const refreshData = async () => {
   </div>
 
   <!-- 活動列表 - 只顯示選中的事件 -->
-  <div v-if="selectedEventId" class="px-4 py-6 space-y-3 bg-background">
+  <div v-if="selectedEventId" class="px-4 pt-3 pb-6 space-y-3 bg-background">
     <h3 class="font-semibold text-foreground">活動詳情</h3>
     
     <!-- 顯示選中的活動 -->
@@ -491,88 +520,117 @@ const refreshData = async () => {
       <BaseCard 
         v-for="event in events.filter(e => e.event_id === selectedEventId)" 
         :key="event.event_id" 
-        class="border border-border cursor-pointer transition-all"
+        class="border border-border transition-all"
         :class="{ 'ring-2 ring-primary': selectedEventId === event.event_id }"
-        @click="selectedEventId = selectedEventId === event.event_id ? null : event.event_id"
       >
         <!-- 基本資訊 -->
         <div class="flex items-start gap-3">
-          <!-- 活動頭像 -->
+          <!-- 狗狗頭像 -->
           <img 
-            :src="event.image_url || event.image || `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(event.title || 'event-' + event.event_id)}`"
-            :alt="event.title"
+            :src="event.image_url || `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(event.dog_name || 'dog-' + event.event_id)}`"
+            :alt="event.dog_name"
             class="w-14 h-14 rounded-full object-cover flex-shrink-0"
           />
           
           <!-- 活動資訊 -->
           <div class="flex-1 min-w-0">
             <div class="flex items-start justify-between gap-2">
-              <h4 class="font-semibold text-foreground">{{ event.title || '未命名活動' }}</h4>
+              <h4 class="font-semibold text-foreground">{{ event.title }}</h4>
               <span class="text-sm font-semibold text-primary whitespace-nowrap flex items-center gap-1">
                 <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                 </svg>
-                {{ event.distance }} km
+                {{ event.distance.toFixed(1) }} km
               </span>
             </div>
             
             <p class="text-sm text-muted-foreground mt-1 line-clamp-2">
-              {{ event.description || event.park_name || '歡迎參加遛狗活動' }}
+              {{ event.description }}
             </p>
             
             <!-- 標籤 -->
             <div class="flex gap-2 flex-wrap mt-2">
-              <span v-if="event.park_name" class="text-xs border border-primary text-primary rounded-full px-2 py-0.5">
-                {{ event.park_name }}
+              <span v-if="event.user_name" class="text-xs border border-primary text-primary rounded-full px-2 py-0.5">
+                主人：{{ event.user_name }}
+              </span>
+              <span v-if="event.dog_breed" class="text-xs border border-primary text-primary rounded-full px-2 py-0.5">
+                {{ event.dog_breed }}
               </span>
               <span v-if="event.activity_type" class="text-xs border border-primary text-primary rounded-full px-2 py-0.5">
                 {{ event.activity_type }}
               </span>
-              <span v-if="event.breed_prefer" class="text-xs border border-primary text-primary rounded-full px-2 py-0.5">
-                {{ event.breed_prefer }}
+              <span v-if="event.request_sitter" class="text-xs border border-orange-500 text-orange-500 rounded-full px-2 py-0.5">
+                徵求保姆
               </span>
             </div>
           </div>
         </div>
 
         <!-- 預約按鈕 - 顯示在卡片基本資訊下方 -->
-        <div class="mt-4">
-          <BaseButton class="w-full" variant="primary" @click.stop="bookEvent(event)">
+        <div class="mt-4" @click.stop>
+          <BaseButton 
+            v-if="!bookedEventIds.has(event.event_id)"
+            class="w-full" 
+            @click="bookEvent(event)"
+          >
             預約 {{ event.title || '活動' }}
           </BaseButton>
+          <div 
+            v-else
+            class="w-full py-2 px-4 text-center text-gray-500 border border-gray-300 rounded-lg bg-gray-50"
+          >
+            ✓ 已預約
+          </div>
         </div>
 
         <!-- 展開的詳細資訊 -->
         <div v-if="selectedEventId === event.event_id" class="mt-4 pt-4 border-t border-border space-y-3">
-          <div v-if="event.park_name" class="flex items-start gap-2">
-            <span class="text-base"></span>
+          <div class="flex items-start gap-2">
             <div class="flex-1">
-              <p class="text-sm font-medium text-foreground">地點</p>
-              <p class="text-sm text-muted-foreground">{{ event.park_name }}{{ event.district ? ` (${event.district})` : '' }}</p>
+              <p class="text-sm font-medium text-foreground">狗狗資訊</p>
+              <p class="text-sm text-muted-foreground">{{ event.dog_name }}{{ event.dog_breed ? ` (${event.dog_breed})` : '' }}</p>
             </div>
           </div>
 
-          <div v-if="event.start_time" class="flex items-start gap-2">
-            <span class="text-base"></span>
+          <div class="flex items-start gap-2">
             <div class="flex-1">
               <p class="text-sm font-medium text-foreground">開始時間</p>
               <p class="text-sm text-muted-foreground">{{ new Date(event.start_time).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) }}</p>
             </div>
           </div>
 
-          <div v-if="event.end_time" class="flex items-start gap-2">
-            <span class="text-base"></span>
+          <div class="flex items-start gap-2">
             <div class="flex-1">
               <p class="text-sm font-medium text-foreground">結束時間</p>
               <p class="text-sm text-muted-foreground">{{ new Date(event.end_time).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) }}</p>
             </div>
           </div>
 
-          <div v-if="event.description" class="flex items-start gap-2">
-            <span class="text-base"></span>
+          <div v-if="event.preference" class="flex items-start gap-2">
             <div class="flex-1">
-              <p class="text-sm font-medium text-foreground">活動說明</p>
-              <p class="text-sm text-muted-foreground leading-relaxed">{{ event.description }}</p>
+              <p class="text-sm font-medium text-foreground">偏好說明</p>
+              <p class="text-sm text-muted-foreground leading-relaxed">{{ event.preference }}</p>
+            </div>
+          </div>
+
+          <div v-if="event.sitter_name" class="flex items-start gap-2">
+            <div class="flex-1">
+              <p class="text-sm font-medium text-foreground">保姆</p>
+              <p class="text-sm text-muted-foreground">{{ event.sitter_name }}</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-2">
+            <div class="flex-1">
+              <p class="text-sm font-medium text-foreground">狀態</p>
+              <span :class="[
+                'text-xs px-2 py-1 rounded-full',
+                event.status === 'active' ? 'bg-green-100 text-green-700' : 
+                event.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 
+                'bg-gray-100 text-gray-700'
+              ]">
+                {{ event.status === 'active' ? '進行中' : event.status === 'pending' ? '待確認' : event.status }}
+              </span>
             </div>
           </div>
         </div>
@@ -588,9 +646,9 @@ const refreshData = async () => {
   </div>
 
   <!-- 寵物友善推薦（標籤頁） -->
-  <div class="px-4 py-6 space-y-3 bg-background pb-24">
+  <div class="px-4 bg-background pb-24">
     <!-- 標籤頁 -->
-    <div class="flex gap-2 mb-4">
+    <div class="flex gap-2 mb-3">
       <button 
         @click="activeTab = 'parks'" 
         :class="[
@@ -692,6 +750,19 @@ const refreshData = async () => {
     </div>
   </div>
 
+  <!-- 下拉提示 - 固定在頁面底部，僅在第一次點擊時顯示 3 秒 -->
+  <Transition name="fade">
+    <div 
+      v-if="showScrollHint" 
+      class="fixed bottom-20 left-0 right-0 flex items-center justify-center gap-2 py-2 bg-white/95 backdrop-blur-sm border-t border-gray-200 text-gray-500 text-sm z-40"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="animate-bounce">
+        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+      </svg>
+      <span>向下滑動查看詳細資訊</span>
+    </div>
+  </Transition>
+
   <BottomNav />
 </template>
 
@@ -711,5 +782,16 @@ const refreshData = async () => {
 /* 小圓角標籤 */
 .pill {
   @apply text-primary-500 border border-primary-500 rounded-full px-2 text-sm;
+}
+
+/* 淡入淡出動畫 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
