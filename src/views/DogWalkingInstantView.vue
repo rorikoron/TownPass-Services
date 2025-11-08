@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useGoogleMapsStore } from '@/stores/googleMaps';
+import { useDogWalkingStore } from '@/stores/dogWalking';
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
 import BaseCard from '@/components/atoms/BaseCard.vue';
 import BaseButton from '@/components/atoms/BaseButton.vue';
 import BottomNav from '@/components/molecules/BottomNav.vue';
 import { supabase } from '@/lib/supabaseClient';
 
+const router = useRouter();
 const googleMapsStore = useGoogleMapsStore();
+const dogWalkingStore = useDogWalkingStore();
 
 let map: google.maps.Map | null = null;
 let selfMarker: google.maps.Marker | null = null;
@@ -26,6 +30,7 @@ const isRefreshing = ref(false);
 const activeTab = ref<'parks' | 'cafes'>('parks'); // 當前標籤：公園或咖啡廳
 const currentDistrict = ref<string>(''); // 使用者所在的區
 const showScrollHint = ref(false); // 控制下拉提示的顯示
+const bookedEventIds = ref<Set<string>>(new Set()); // 追蹤已預約的事件 ID
 
 /** 目前位置（預設信義區） */
 const currentLocation = ref<{ lat: number; lng: number }>({
@@ -335,6 +340,9 @@ function updateMarkers() {
     marker.addListener('click', () => {
       // 設置選中的事件 ID
       selectedEventId.value = event.event_id;
+      console.log('點擊標記，設置 selectedEventId:', event.event_id);
+      console.log('目前 events 陣列長度:', events.value.length);
+      console.log('過濾後的事件:', events.value.filter(e => e.event_id === event.event_id));
       
       // 第一次點擊標記時顯示下拉提示，3秒後自動消失
       if (!showScrollHint.value) {
@@ -430,7 +438,40 @@ watch(events, updateMarkers);
 
 /** 預約活動 */
 const bookEvent = (event: any) => {
-  alert(`預約 ${event.title || '活動'}`);
+  console.log('🔵 bookEvent 被呼叫！', event);
+  console.log('🔵 event.event_id:', event.event_id);
+  console.log('🔵 已預約列表:', Array.from(bookedEventIds.value));
+  
+  // 檢查是否已預約
+  if (bookedEventIds.value.has(event.event_id)) {
+    console.log('⚠️ 此活動已預約，跳過');
+    return;
+  }
+  
+  console.log('✅ 開始預約流程');
+  
+  // 將活動加入到遛狗清單
+  dogWalkingStore.addToQueue(
+    {
+      id: event.event_id,
+      name: event.dog_name || '未命名',
+      breed: event.dog_breed || '未知品種',
+      owner: event.user_name || '未知飼主'
+    },
+    'current-user-id' // TODO: 替換成實際的使用者 ID
+  );
+  
+  // 標記為已預約
+  bookedEventIds.value.add(event.event_id);
+  
+  // 顯示成功提示
+  console.log('預約成功！', event);
+  console.log('已預約的事件 ID:', Array.from(bookedEventIds.value));
+};
+
+/** 檢查事件是否已預約 */
+const isEventBooked = (eventId: string) => {
+  return bookedEventIds.value.has(eventId);
 };
 
 /** 重新抓取資料 */
@@ -498,9 +539,8 @@ const refreshData = async () => {
       <BaseCard 
         v-for="event in events.filter(e => e.event_id === selectedEventId)" 
         :key="event.event_id" 
-        class="border border-border cursor-pointer transition-all"
+        class="border border-border transition-all"
         :class="{ 'ring-2 ring-primary': selectedEventId === event.event_id }"
-        @click="selectedEventId = selectedEventId === event.event_id ? null : event.event_id"
       >
         <!-- 基本資訊 -->
         <div class="flex items-start gap-3">
@@ -546,10 +586,20 @@ const refreshData = async () => {
         </div>
 
         <!-- 預約按鈕 - 顯示在卡片基本資訊下方 -->
-        <div class="mt-4">
-          <BaseButton class="w-full" variant="primary" @click.stop="bookEvent(event)">
+        <div class="mt-4" @click.stop>
+          <BaseButton 
+            v-if="!bookedEventIds.has(event.event_id)"
+            class="w-full" 
+            @click="bookEvent(event)"
+          >
             預約 {{ event.title || '活動' }}
           </BaseButton>
+          <div 
+            v-else
+            class="w-full py-2 px-4 text-center text-gray-500 border border-gray-300 rounded-lg bg-gray-50"
+          >
+            ✓ 已預約
+          </div>
         </div>
 
         <!-- 展開的詳細資訊 -->
