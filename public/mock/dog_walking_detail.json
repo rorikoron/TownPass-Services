@@ -1,0 +1,46 @@
+{
+  "data": [
+    {
+      "id": "1",
+      "dogName": "小Q",
+      "breed": "柯基",
+      "ownerName": "王先生",
+      "ownerLocation": "台北市信義區",
+      "favoriteActivities": ["丟球", "散步", "寵物瑜伽"],
+      "useCases": ["owner", "both"],
+      "walkingTime": "每天上午 10:00-11:00",
+      "description": "小Q 是隻活潑可愛的柯基，非常喜歡和其他狗狗玩耍。",
+      "imageUrl": "/images/dog-1.jpg",
+      "reviews": 8,
+      "rating": 4.5
+    },
+    {
+      "id": "2",
+      "dogName": "旺財",
+      "breed": "哈士奇",
+      "ownerName": "李女士",
+      "ownerLocation": "新北市板橋區",
+      "favoriteActivities": ["自行車陪跑", "散步", "遊泳"],
+      "useCases": ["owner"],
+      "walkingTime": "週末下午 14:00-16:00",
+      "description": "旺財 是隻充滿活力的哈士奇，需要大量的運動和陪伴。",
+      "imageUrl": "/images/dog-2.jpg",
+      "reviews": 12,
+      "rating": 5
+    },
+    {
+      "id": "3",
+      "dogName": "小白",
+      "breed": "柴犬",
+      "ownerName": "林先生",
+      "ownerLocation": "台中市西屯區",
+      "favoriteActivities": ["遊泳", "丟球"],
+      "useCases": ["walker", "both"],
+      "walkingTime": "平日傍晚 17:00-18:00",
+      "description": "小白 是隻獨立且聰慧的柴犬，喜歡在公園裡探索。",
+      "imageUrl": "/images/dog-3.jpg",
+      "reviews": 6,
+      "rating": 4.8
+    }
+  ]
+}
