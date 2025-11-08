@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed bottom-0 left-0 right-0 bg-card border-t border-border px-4 py-3 flex justify-around md:hidden">
+  <div class="fixed bottom-0 left-0 right-0 bg-card border-t border-border px-4 py-2 flex justify-around md:hidden">
     <router-link
       v-for="item in navItems"
       :key="item.path"
