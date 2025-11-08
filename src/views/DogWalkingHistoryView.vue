@@ -209,6 +209,7 @@ interface Event {
   proposer_name: string;
 }
 const events = ref<Event[]>([]);
+const steps_today = ref<number>(0);
 
 // replace with acctual id
 const user_id = ref<string>('7f3562f4-bb3f-4ec7-89b9-da3b4b5ff250');
@@ -216,12 +217,14 @@ const handleConnectionData = (event: { data: string }) => {
   const parsed = JSON.parse(event.data);
   console.log('Received data:', JSON.stringify(parsed, null, 2));
 
-  user_id.value = parsed.data?.id;
+  if (parsed?.name === 'userinfo') user_id.value = parsed.data?.id;
+  // else steps_today.value = parsed?.data?.steps
 };
 
 useHandleConnectionData(handleConnectionData);
 onMounted(async () => {
   useConnectionMessage('userinfo', null);
+  useConnectionMessage('health_connection', null);
 });
 
 const updateEvents = async () => {
@@ -260,19 +263,31 @@ function calculateMins(start_time: string, end_time: string) {
       <!-- 統計數據區塊 -->
       <div class="bg-background border-b border-gray-200">
         <!-- 標題列 -->
-        <div 
+        <div
           @click="toggleStats"
-          class="px-4 py-4 flex items-center justify-between cursor-pointer hover:bg-white/50 transition-colors">
+          class="px-4 py-4 flex items-center justify-between cursor-pointer hover:bg-white/50 transition-colors"
+        >
           <div class="flex items-center gap-2">
             <h2 class="text-lg font-bold text-gray-900">步數統計</h2>
-            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">本週累計 54,000 步</span>
+            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full"
+              >本週累計 54,000 步</span
+            >
           </div>
-          <svg 
-            :class="['w-5 h-5 text-gray-400 transition-transform', isStatsExpanded ? 'rotate-180' : '']"
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          <svg
+            :class="[
+              'w-5 h-5 text-gray-400 transition-transform',
+              isStatsExpanded ? 'rotate-180' : ''
+            ]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 9l-7 7-7-7"
+            />
           </svg>
         </div>
 
@@ -283,222 +298,448 @@ function calculateMins(start_time: string, end_time: string) {
           enter-to-class="opacity-100 max-h-[800px]"
           leave-active-class="transition-all duration-300 ease-in"
           leave-from-class="opacity-100 max-h-[800px]"
-          leave-to-class="opacity-0 max-h-0">
-          <div 
-            v-show="isStatsExpanded"
-            class="px-4 pb-6 overflow-hidden">
-          <!-- 週/月/年切換按鈕 -->
-          <div class="flex gap-2 mb-6">
-          <button 
-            @click="selectedPeriod = 'week'"
-            :class="selectedPeriod === 'week' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-            class="px-8 py-2.5 rounded-full text-sm font-medium transition-colors">
-            週
-          </button>
-          <button 
-            @click="selectedPeriod = 'month'"
-            :class="selectedPeriod === 'month' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-            class="px-8 py-2.5 rounded-full text-sm font-medium transition-colors">
-            月
-          </button>
-          <button 
-            @click="selectedPeriod = 'year'"
-            :class="selectedPeriod === 'year' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-            class="px-8 py-2.5 rounded-full text-sm font-medium transition-colors">
-            年
-          </button>
-        </div>
+          leave-to-class="opacity-0 max-h-0"
+        >
+          <div v-show="isStatsExpanded" class="px-4 pb-6 overflow-hidden">
+            <!-- 週/月/年切換按鈕 -->
+            <div class="flex gap-2 mb-6">
+              <button
+                @click="selectedPeriod = 'week'"
+                :class="
+                  selectedPeriod === 'week'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                "
+                class="px-8 py-2.5 rounded-full text-sm font-medium transition-colors"
+              >
+                週
+              </button>
+              <button
+                @click="selectedPeriod = 'month'"
+                :class="
+                  selectedPeriod === 'month'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                "
+                class="px-8 py-2.5 rounded-full text-sm font-medium transition-colors"
+              >
+                月
+              </button>
+              <button
+                @click="selectedPeriod = 'year'"
+                :class="
+                  selectedPeriod === 'year'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                "
+                class="px-8 py-2.5 rounded-full text-sm font-medium transition-colors"
+              >
+                年
+              </button>
+            </div>
 
-        <!-- 長條圖 -->
-        <div class="mb-6 relative" style="padding-bottom: 50px;">
-          <!-- Y 軸刻度線和數值 -->
-          <div class="absolute left-0 top-0 flex flex-col justify-between text-xs text-gray-500 pr-3 font-medium" style="height: 200px;">
-            <span>20K</span>
-            <span>15K</span>
-            <span>10K</span>
-            <span>5K</span>
-            <span>0</span>
-          </div>
-
-          <!-- 圖表區域 -->
-          <div class="ml-14">
-            <!-- 水平虛線背景 -->
-            <div class="relative" style="height: 200px;">
-              <div class="absolute w-full border-t border-dashed border-gray-200" style="top: 0%"></div>
-              <div class="absolute w-full border-t border-dashed border-gray-200" style="top: 25%"></div>
-              <div class="absolute w-full border-t border-dashed border-gray-200" style="top: 50%"></div>
-              <div class="absolute w-full border-t border-dashed border-gray-200" style="top: 75%"></div>
-              <div class="absolute w-full border-t border-dashed border-gray-300" style="top: 100%"></div>
-
-              <!-- 週數據 -->
-              <div v-if="selectedPeriod === 'week'" class="absolute inset-0 flex items-end justify-between gap-2">
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 25%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 45%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 75%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 40%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 55%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 30%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 28%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
+            <!-- 長條圖 -->
+            <div class="mb-6 relative" style="padding-bottom: 50px">
+              <!-- Y 軸刻度線和數值 -->
+              <div
+                class="absolute left-0 top-0 flex flex-col justify-between text-xs text-gray-500 pr-3 font-medium"
+                style="height: 200px"
+              >
+                <span>20K</span>
+                <span>15K</span>
+                <span>10K</span>
+                <span>5K</span>
+                <span>0</span>
               </div>
 
-              <!-- 月數據 -->
-              <div v-if="selectedPeriod === 'month'" class="absolute inset-0 flex items-end justify-between gap-2">
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 50%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 65%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 80%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 90%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-              </div>
+              <!-- 圖表區域 -->
+              <div class="ml-14">
+                <!-- 水平虛線背景 -->
+                <div class="relative" style="height: 200px">
+                  <div
+                    class="absolute w-full border-t border-dashed border-gray-200"
+                    style="top: 0%"
+                  ></div>
+                  <div
+                    class="absolute w-full border-t border-dashed border-gray-200"
+                    style="top: 25%"
+                  ></div>
+                  <div
+                    class="absolute w-full border-t border-dashed border-gray-200"
+                    style="top: 50%"
+                  ></div>
+                  <div
+                    class="absolute w-full border-t border-dashed border-gray-200"
+                    style="top: 75%"
+                  ></div>
+                  <div
+                    class="absolute w-full border-t border-dashed border-gray-300"
+                    style="top: 100%"
+                  ></div>
 
-              <!-- 年數據 -->
-              <div v-if="selectedPeriod === 'year'" class="absolute inset-0 flex items-end justify-between gap-1">
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 35%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 30%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 45%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 55%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 65%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 70%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 80%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 75%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 85%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 90%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 78%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 72%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-              </div>
+                  <!-- 週數據 -->
+                  <div
+                    v-if="selectedPeriod === 'week'"
+                    class="absolute inset-0 flex items-end justify-between gap-2"
+                  >
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 25%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 6px 6px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 45%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 6px 6px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 75%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 6px 6px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 40%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 6px 6px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 55%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 6px 6px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 30%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 6px 6px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 28%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 6px 6px 0 0;
+                      "
+                    ></div>
+                  </div>
 
-              <!-- X 軸標籤 - 週 -->
-              <div v-if="selectedPeriod === 'week'" class="absolute w-full flex justify-between gap-2" style="top: 100%; margin-top: 10px;">
-                <div class="flex-1 text-center">
-                  <div class="text-sm font-bold text-gray-800 mb-0.5">5K</div>
-                  <div class="text-xs text-gray-500">週日</div>
-                </div>
-                <div class="flex-1 text-center">
-                  <div class="text-sm font-bold text-gray-800 mb-0.5">9K</div>
-                  <div class="text-xs text-gray-500">週一</div>
-                </div>
-                <div class="flex-1 text-center">
-                  <div class="text-sm font-bold text-gray-800 mb-0.5">15K</div>
-                  <div class="text-xs text-gray-500">週二</div>
-                </div>
-                <div class="flex-1 text-center">
-                  <div class="text-sm font-bold text-gray-800 mb-0.5">8K</div>
-                  <div class="text-xs text-gray-500">週三</div>
-                </div>
-                <div class="flex-1 text-center">
-                  <div class="text-sm font-bold text-gray-800 mb-0.5">11K</div>
-                  <div class="text-xs text-gray-500">週四</div>
-                </div>
-                <div class="flex-1 text-center">
-                  <div class="text-sm font-bold text-gray-800 mb-0.5">6K</div>
-                  <div class="text-xs text-gray-500">週五</div>
-                </div>
-                <div class="flex-1 text-center">
-                  <div class="text-sm font-bold text-gray-800 mb-0.5">5.5K</div>
-                  <div class="text-xs text-gray-500">週六</div>
-                </div>
-              </div>
+                  <!-- 月數據 -->
+                  <div
+                    v-if="selectedPeriod === 'month'"
+                    class="absolute inset-0 flex items-end justify-between gap-2"
+                  >
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 50%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 6px 6px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 65%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 6px 6px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 80%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 6px 6px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 90%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 6px 6px 0 0;
+                      "
+                    ></div>
+                  </div>
 
-              <!-- X 軸標籤 - 月 -->
-              <div v-if="selectedPeriod === 'month'" class="absolute w-full flex justify-between gap-2" style="top: 100%; margin-top: 10px;">
-                <div class="flex-1 text-center">
-                  <div class="text-sm font-bold text-gray-800 mb-0.5">10K</div>
-                  <div class="text-xs text-gray-500">第一週</div>
-                </div>
-                <div class="flex-1 text-center">
-                  <div class="text-sm font-bold text-gray-800 mb-0.5">13K</div>
-                  <div class="text-xs text-gray-500">第二週</div>
-                </div>
-                <div class="flex-1 text-center">
-                  <div class="text-sm font-bold text-gray-800 mb-0.5">16K</div>
-                  <div class="text-xs text-gray-500">第三週</div>
-                </div>
-                <div class="flex-1 text-center">
-                  <div class="text-sm font-bold text-gray-800 mb-0.5">18K</div>
-                  <div class="text-xs text-gray-500">第四週</div>
-                </div>
-              </div>
+                  <!-- 年數據 -->
+                  <div
+                    v-if="selectedPeriod === 'year'"
+                    class="absolute inset-0 flex items-end justify-between gap-1"
+                  >
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 35%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 4px 4px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 30%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 4px 4px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 45%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 4px 4px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 55%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 4px 4px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 65%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 4px 4px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 70%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 4px 4px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 80%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 4px 4px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 75%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 4px 4px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 85%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 4px 4px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 90%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 4px 4px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 78%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 4px 4px 0 0;
+                      "
+                    ></div>
+                    <div
+                      class="flex-1 transition-all hover:opacity-80"
+                      style="
+                        height: 72%;
+                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        border-radius: 4px 4px 0 0;
+                      "
+                    ></div>
+                  </div>
 
-              <!-- X 軸標籤 - 年 -->
-              <div v-if="selectedPeriod === 'year'" class="absolute w-full flex justify-between gap-1" style="top: 100%; margin-top: 8px;">
-                <div class="flex-1 text-center min-w-0">
-                  <div class="text-xs font-bold text-gray-800">7K</div>
-                  <div class="text-xs text-gray-500 whitespace-nowrap">1月</div>
-                </div>
-                <div class="flex-1 text-center min-w-0">
-                  <div class="text-xs font-bold text-gray-800">6K</div>
-                  <div class="text-xs text-gray-500 whitespace-nowrap">2月</div>
-                </div>
-                <div class="flex-1 text-center min-w-0">
-                  <div class="text-xs font-bold text-gray-800">9K</div>
-                  <div class="text-xs text-gray-500 whitespace-nowrap">3月</div>
-                </div>
-                <div class="flex-1 text-center min-w-0">
-                  <div class="text-xs font-bold text-gray-800">11K</div>
-                  <div class="text-xs text-gray-500 whitespace-nowrap">4月</div>
-                </div>
-                <div class="flex-1 text-center min-w-0">
-                  <div class="text-xs font-bold text-gray-800">13K</div>
-                  <div class="text-xs text-gray-500 whitespace-nowrap">5月</div>
-                </div>
-                <div class="flex-1 text-center min-w-0">
-                  <div class="text-xs font-bold text-gray-800">14K</div>
-                  <div class="text-xs text-gray-500 whitespace-nowrap">6月</div>
-                </div>
-                <div class="flex-1 text-center min-w-0">
-                  <div class="text-xs font-bold text-gray-800">16K</div>
-                  <div class="text-xs text-gray-500 whitespace-nowrap">7月</div>
-                </div>
-                <div class="flex-1 text-center min-w-0">
-                  <div class="text-xs font-bold text-gray-800">15K</div>
-                  <div class="text-xs text-gray-500 whitespace-nowrap">8月</div>
-                </div>
-                <div class="flex-1 text-center min-w-0">
-                  <div class="text-xs font-bold text-gray-800">17K</div>
-                  <div class="text-xs text-gray-500 whitespace-nowrap">9月</div>
-                </div>
-                <div class="flex-1 text-center min-w-0">
-                  <div class="text-xs font-bold text-gray-800">18K</div>
-                  <div class="text-xs text-gray-500 whitespace-nowrap">10月</div>
-                </div>
-                <div class="flex-1 text-center min-w-0">
-                  <div class="text-xs font-bold text-gray-800">15.5K</div>
-                  <div class="text-xs text-gray-500 whitespace-nowrap">11月</div>
-                </div>
-                <div class="flex-1 text-center min-w-0">
-                  <div class="text-xs font-bold text-gray-800">14.5K</div>
-                  <div class="text-xs text-gray-500 whitespace-nowrap">12月</div>
+                  <!-- X 軸標籤 - 週 -->
+                  <div
+                    v-if="selectedPeriod === 'week'"
+                    class="absolute w-full flex justify-between gap-2"
+                    style="top: 100%; margin-top: 10px"
+                  >
+                    <div class="flex-1 text-center">
+                      <div class="text-sm font-bold text-gray-800 mb-0.5">5K</div>
+                      <div class="text-xs text-gray-500">週日</div>
+                    </div>
+                    <div class="flex-1 text-center">
+                      <div class="text-sm font-bold text-gray-800 mb-0.5">9K</div>
+                      <div class="text-xs text-gray-500">週一</div>
+                    </div>
+                    <div class="flex-1 text-center">
+                      <div class="text-sm font-bold text-gray-800 mb-0.5">15K</div>
+                      <div class="text-xs text-gray-500">週二</div>
+                    </div>
+                    <div class="flex-1 text-center">
+                      <div class="text-sm font-bold text-gray-800 mb-0.5">8K</div>
+                      <div class="text-xs text-gray-500">週三</div>
+                    </div>
+                    <div class="flex-1 text-center">
+                      <div class="text-sm font-bold text-gray-800 mb-0.5">11K</div>
+                      <div class="text-xs text-gray-500">週四</div>
+                    </div>
+                    <div class="flex-1 text-center">
+                      <div class="text-sm font-bold text-gray-800 mb-0.5">6K</div>
+                      <div class="text-xs text-gray-500">週五</div>
+                    </div>
+                    <div class="flex-1 text-center">
+                      <div class="text-sm font-bold text-gray-800 mb-0.5">5.5K</div>
+                      <div class="text-xs text-gray-500">週六</div>
+                    </div>
+                  </div>
+
+                  <!-- X 軸標籤 - 月 -->
+                  <div
+                    v-if="selectedPeriod === 'month'"
+                    class="absolute w-full flex justify-between gap-2"
+                    style="top: 100%; margin-top: 10px"
+                  >
+                    <div class="flex-1 text-center">
+                      <div class="text-sm font-bold text-gray-800 mb-0.5">10K</div>
+                      <div class="text-xs text-gray-500">第一週</div>
+                    </div>
+                    <div class="flex-1 text-center">
+                      <div class="text-sm font-bold text-gray-800 mb-0.5">13K</div>
+                      <div class="text-xs text-gray-500">第二週</div>
+                    </div>
+                    <div class="flex-1 text-center">
+                      <div class="text-sm font-bold text-gray-800 mb-0.5">16K</div>
+                      <div class="text-xs text-gray-500">第三週</div>
+                    </div>
+                    <div class="flex-1 text-center">
+                      <div class="text-sm font-bold text-gray-800 mb-0.5">18K</div>
+                      <div class="text-xs text-gray-500">第四週</div>
+                    </div>
+                  </div>
+
+                  <!-- X 軸標籤 - 年 -->
+                  <div
+                    v-if="selectedPeriod === 'year'"
+                    class="absolute w-full flex justify-between gap-1"
+                    style="top: 100%; margin-top: 8px"
+                  >
+                    <div class="flex-1 text-center min-w-0">
+                      <div class="text-xs font-bold text-gray-800">7K</div>
+                      <div class="text-xs text-gray-500 whitespace-nowrap">1月</div>
+                    </div>
+                    <div class="flex-1 text-center min-w-0">
+                      <div class="text-xs font-bold text-gray-800">6K</div>
+                      <div class="text-xs text-gray-500 whitespace-nowrap">2月</div>
+                    </div>
+                    <div class="flex-1 text-center min-w-0">
+                      <div class="text-xs font-bold text-gray-800">9K</div>
+                      <div class="text-xs text-gray-500 whitespace-nowrap">3月</div>
+                    </div>
+                    <div class="flex-1 text-center min-w-0">
+                      <div class="text-xs font-bold text-gray-800">11K</div>
+                      <div class="text-xs text-gray-500 whitespace-nowrap">4月</div>
+                    </div>
+                    <div class="flex-1 text-center min-w-0">
+                      <div class="text-xs font-bold text-gray-800">13K</div>
+                      <div class="text-xs text-gray-500 whitespace-nowrap">5月</div>
+                    </div>
+                    <div class="flex-1 text-center min-w-0">
+                      <div class="text-xs font-bold text-gray-800">14K</div>
+                      <div class="text-xs text-gray-500 whitespace-nowrap">6月</div>
+                    </div>
+                    <div class="flex-1 text-center min-w-0">
+                      <div class="text-xs font-bold text-gray-800">16K</div>
+                      <div class="text-xs text-gray-500 whitespace-nowrap">7月</div>
+                    </div>
+                    <div class="flex-1 text-center min-w-0">
+                      <div class="text-xs font-bold text-gray-800">15K</div>
+                      <div class="text-xs text-gray-500 whitespace-nowrap">8月</div>
+                    </div>
+                    <div class="flex-1 text-center min-w-0">
+                      <div class="text-xs font-bold text-gray-800">17K</div>
+                      <div class="text-xs text-gray-500 whitespace-nowrap">9月</div>
+                    </div>
+                    <div class="flex-1 text-center min-w-0">
+                      <div class="text-xs font-bold text-gray-800">18K</div>
+                      <div class="text-xs text-gray-500 whitespace-nowrap">10月</div>
+                    </div>
+                    <div class="flex-1 text-center min-w-0">
+                      <div class="text-xs font-bold text-gray-800">15.5K</div>
+                      <div class="text-xs text-gray-500 whitespace-nowrap">11月</div>
+                    </div>
+                    <div class="flex-1 text-center min-w-0">
+                      <div class="text-xs font-bold text-gray-800">14.5K</div>
+                      <div class="text-xs text-gray-500 whitespace-nowrap">12月</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- 對比數據 -->
-        <div>
-          <div class="flex items-center justify-between mb-4">
-            <h4 class="text-base font-bold text-gray-800">每日對比</h4>
-            <span class="text-xs text-gray-500">與本週平均比較</span>
-          </div>
-          <div class="space-y-4">
-            <!-- 今天 -->
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-medium text-gray-700 w-12">今天</span>
-              <div class="flex-1 mx-4">
-                <div class="h-9 rounded-full transition-all" 
-                     style="width: 61.5%; background: linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%);"></div>
+            <!-- 對比數據 -->
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <h4 class="text-base font-bold text-gray-800">每日對比</h4>
+                <span class="text-xs text-gray-500">與本週平均比較</span>
               </div>
-              <span class="text-base font-bold text-gray-900 w-16 text-right">5306</span>
-            </div>
-            <!-- 平均 -->
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-medium text-gray-700 w-12">平均</span>
-              <div class="flex-1 mx-4">
-                <div class="h-9 rounded-full transition-all" 
-                     style="width: 100%; background: linear-gradient(90deg, #5BA4B8 0%, #4A8A9B 100%);"></div>
+              <div class="space-y-4">
+                <!-- 今天 -->
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-medium text-gray-700 w-12">今天</span>
+                  <div class="flex-1 mx-4">
+                    <div
+                      class="h-9 rounded-full transition-all"
+                      style="
+                        width: 61.5%;
+                        background: linear-gradient(90deg, #fcd34d 0%, #f59e0b 100%);
+                      "
+                    ></div>
+                  </div>
+                  <span class="text-base font-bold text-gray-900 w-16 text-right">{{
+                    steps_today
+                  }}</span>
+                </div>
+                <!-- 平均 -->
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-medium text-gray-700 w-12">平均</span>
+                  <div class="flex-1 mx-4">
+                    <div
+                      class="h-9 rounded-full transition-all"
+                      style="
+                        width: 100%;
+                        background: linear-gradient(90deg, #5ba4b8 0%, #4a8a9b 100%);
+                      "
+                    ></div>
+                  </div>
+                  <span class="text-base font-bold text-gray-900 w-16 text-right">8626</span>
+                </div>
               </div>
-              <span class="text-base font-bold text-gray-900 w-16 text-right">8626</span>
             </div>
-          </div>
-        </div>
           </div>
         </transition>
       </div>
