@@ -340,9 +340,6 @@ function updateMarkers() {
     marker.addListener('click', () => {
       // 設置選中的事件 ID
       selectedEventId.value = event.event_id;
-      console.log('點擊標記，設置 selectedEventId:', event.event_id);
-      console.log('目前 events 陣列長度:', events.value.length);
-      console.log('過濾後的事件:', events.value.filter(e => e.event_id === event.event_id));
       
       // 第一次點擊標記時顯示下拉提示，3秒後自動消失
       if (!showScrollHint.value) {
@@ -438,17 +435,10 @@ watch(events, updateMarkers);
 
 /** 預約活動 */
 const bookEvent = (event: any) => {
-  console.log('🔵 bookEvent 被呼叫！', event);
-  console.log('🔵 event.event_id:', event.event_id);
-  console.log('🔵 已預約列表:', Array.from(bookedEventIds.value));
-  
   // 檢查是否已預約
   if (bookedEventIds.value.has(event.event_id)) {
-    console.log('⚠️ 此活動已預約，跳過');
     return;
   }
-  
-  console.log('✅ 開始預約流程');
   
   // 將活動加入到遛狗清單
   dogWalkingStore.addToQueue(
@@ -463,15 +453,6 @@ const bookEvent = (event: any) => {
   
   // 標記為已預約
   bookedEventIds.value.add(event.event_id);
-  
-  // 顯示成功提示
-  console.log('預約成功！', event);
-  console.log('已預約的事件 ID:', Array.from(bookedEventIds.value));
-};
-
-/** 檢查事件是否已預約 */
-const isEventBooked = (eventId: string) => {
-  return bookedEventIds.value.has(eventId);
 };
 
 /** 重新抓取資料 */

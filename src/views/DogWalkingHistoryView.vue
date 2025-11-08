@@ -274,7 +274,49 @@ function calculateMins(start_time: string, end_time: string) {
         <!-- 發佈紀錄 & 遛狗紀錄 -->
         <template v-if="activeTab !== 'queue'">
           <div v-if="activeTab === 'published'" class="space-y-4">
-            <!-- 發布紀錄 -->
+            <!-- 顯示 store 中預約的遛狗清單 -->
+            <BaseCard
+              v-for="queuedDog in walkingQueue"
+              :key="queuedDog.id"
+              class="border border-border bg-white overflow-hidden"
+            >
+              <div class="p-4 space-y-3">
+                <!-- 狗狗基本資訊 -->
+                <div class="flex items-start justify-between">
+                  <div>
+                    <h3 class="text-lg font-semibold text-foreground">{{ queuedDog.dogName }}</h3>
+                    <p class="text-sm text-muted-foreground">{{ queuedDog.breed }}</p>
+                    <p class="text-sm text-muted-foreground">飼主: {{ queuedDog.ownerName }}</p>
+                    <p class="text-xs text-gray-400 mt-1">預約時間: {{ queuedDog.addedTime }}</p>
+                  </div>
+
+                  <!-- 狀態標記 -->
+                  <div class="flex-shrink-0">
+                    <span class="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-600">
+                      待遛狗
+                    </span>
+                  </div>
+                </div>
+
+                <!-- 操作按鈕 -->
+                <div class="flex gap-3">
+                  <BaseButton
+                    class="flex-1 py-2 text-sm bg-primary text-primary-foreground"
+                    @click="store.startWalkingFromQueue(queuedDog.id)"
+                  >
+                    開始遛狗
+                  </BaseButton>
+                  <BaseButton
+                    class="flex-1 py-2 text-sm bg-red-500 text-white hover:bg-red-600"
+                    @click="store.removeFromQueue(queuedDog.id)"
+                  >
+                    移除
+                  </BaseButton>
+                </div>
+              </div>
+            </BaseCard>
+            
+            <!-- 原本的發布紀錄（從資料庫抓取） -->
             <BaseCard
               v-for="record in events.filter((e) => e.user_id === user_id)"
               :key="record.created_at"
@@ -333,8 +375,9 @@ function calculateMins(start_time: string, end_time: string) {
               </div>
             </BaseCard>
 
-            <div v-if="filteredRecords.length === 0" class="text-center py-12">
-              <p class="text-muted-foreground">沒有紀錄</p>
+            <!-- 空狀態 -->
+            <div v-if="walkingQueue.length === 0 && events.filter((e) => e.user_id === user_id).length === 0" class="text-center py-12">
+              <p class="text-muted-foreground">沒有發布紀錄</p>
             </div>
           </div>
 
