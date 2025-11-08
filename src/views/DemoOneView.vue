@@ -185,57 +185,53 @@ const addDog = async () => {
 
     <div class="px-4 py-6 space-y-6">
       <!-- 狗狗基本資訊 -->
-      <BaseCard class="p-6 border border-border bg-white shadow-sm">
-        <h2 class="text-lg font-semibold text-foreground mb-4">狗狗基本資訊</h2>
+      <div class="space-y-4">
 
         <div class="space-y-4">
-          <!-- 飼主名字和狗狗名字 (並排) -->
-          <div class="space-x-4">
-            <BaseLabel class="text-foreground">狗狗名字 *</BaseLabel>
+          <!-- 狗狗名字 -->
+          <div>
+            <BaseLabel class="text-foreground block mb-2">
+              狗狗名字 <span style="color: #2EB6C7;">*</span>
+            </BaseLabel>
             <BaseInput
               required
               v-model="form.dogName"
               type="text"
               placeholder="輸入狗狗名字"
-              class="mt-2 bg-muted border-border"
+              class="w-full bg-muted border-border"
             />
           </div>
 
-          <!-- 飼主地點 -->
-          <!-- <div class="space-x-4">
-            <BaseLabel class="text-foreground">飼主地點 *</BaseLabel>
-            <BaseInput
-              v-model="ownerLocation"
-              type="text"
-              placeholder="輸入飼主地點"
-              class="mt-2 bg-muted border-border"
-            />
-          </div> -->
-
           <!-- 狗狗品種 -->
           <div>
-            <BaseLabel class="text-foreground">狗狗品種 *</BaseLabel>
+            <BaseLabel class="text-foreground block mb-2">
+              狗狗品種 <span style="color: #2EB6C7;">*</span>
+            </BaseLabel>
             <BaseSelect
               required
               select-id="dogBreed"
               v-model="form.dogBreed"
               :options="DOG_BREEDS"
               default-selected="選擇品種"
-              custom-class="mt-2 bg-muted border-border"
+              custom-class="w-full bg-muted border-border"
             />
           </div>
 
+          <!-- 當前位置 -->
           <div>
-            <BaseLabel class="text-foreground">當前位置 *</BaseLabel>
+            <BaseLabel class="text-foreground block mb-2">
+              當前位置 <span style="color: #2EB6C7;">*</span>
+            </BaseLabel>
             <BaseInput
               disabled
               v-model="ownerLocation"
-              custom-class="mt-2 bg-muted border-border"
+              class="w-full bg-muted border-border"
             />
           </div>
+
           <!-- 狗狗喜歡的活動 -->
           <div>
-            <BaseLabel class="text-foreground">狗狗喜歡的活動</BaseLabel>
+            <BaseLabel class="text-foreground block mb-2">狗狗喜歡的活動</BaseLabel>
             <div class="mt-3 space-y-2">
               <label
                 v-for="activity in ACTIVITIES"
@@ -258,50 +254,55 @@ const addDog = async () => {
             </div>
           </div>
 
-          <!-- 起始時間（當選擇"設定起訖時間"時顯示） -->
-          <div class="space-x-4">
-            <BaseLabel class="text-foreground">起始時間 *</BaseLabel>
+          <!-- 起始時間 -->
+          <div>
+            <BaseLabel class="text-foreground block mb-2">
+              起始時間 <span style="color: #2EB6C7;">*</span>
+            </BaseLabel>
             <BaseInput
               required
               v-model="form.startTime"
               type="datetime-local"
               placeholder="年 / 月 / 日 ----:--"
-              class="mt-2 bg-muted border-border"
+              class="w-full bg-muted border-border"
             />
           </div>
 
-          <!-- 結束時間（當選擇"設定起訖時間"時顯示） -->
-          <div class="space-x-4">
-            <BaseLabel class="text-foreground">結束時間 *</BaseLabel>
+          <!-- 結束時間 -->
+          <div>
+            <BaseLabel class="text-foreground block mb-2">
+              結束時間 <span style="color: #2EB6C7;">*</span>
+            </BaseLabel>
             <BaseInput
               required
               v-model="form.endTime"
               type="datetime-local"
               placeholder="年 / 月 / 日 ----:--"
-              class="mt-2 bg-muted border-border"
+              class="w-full bg-muted border-border"
             />
           </div>
 
-          <div class="space-x-4">
-            <BaseLabel class="text-foreground">備註</BaseLabel>
+          <!-- 備註 -->
+          <div>
+            <BaseLabel class="text-foreground block mb-2">備註</BaseLabel>
             <BaseInput
               v-model="form.dogPreferences"
               type="textarea"
               placeholder="輸入狗狗備注"
-              class="mt-2 bg-muted border-border"
+              class="w-full bg-muted border-border"
             />
           </div>
 
           <!-- 新增狗狗按鈕 -->
           <BaseButton
             @click="addDog"
-            class="w-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2"
+            class="w-full bg-primary text-primary-foreground flex items-center justify-center gap-2"
           >
             <Plus class="w-4 h-4" />
             新增狗狗
           </BaseButton>
         </div>
-      </BaseCard>
+      </div>
 
       <!-- 已新增的狗狗列表 -->
       <div v-if="store.dogs.length > 0" class="space-y-3">
