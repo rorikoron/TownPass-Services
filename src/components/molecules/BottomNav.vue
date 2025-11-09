@@ -29,7 +29,7 @@ const navItems = [
 const getLinkClass = (path: string) => {
   const isActive = route.path === path;
   return `flex flex-col items-center gap-1 py-2 px-4 rounded-md transition-colors ${
-    isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+    isActive ? 'text-[#2EB6C7]' : 'text-muted-foreground hover:text-foreground'
   }`;
 };
 </script>
