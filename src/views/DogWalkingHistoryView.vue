@@ -383,7 +383,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 25%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 6px 6px 0 0;
                       "
                     ></div>
@@ -391,7 +391,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 45%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 6px 6px 0 0;
                       "
                     ></div>
@@ -399,7 +399,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 75%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 6px 6px 0 0;
                       "
                     ></div>
@@ -407,7 +407,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 40%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 6px 6px 0 0;
                       "
                     ></div>
@@ -415,7 +415,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 55%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 6px 6px 0 0;
                       "
                     ></div>
@@ -423,7 +423,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 30%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 6px 6px 0 0;
                       "
                     ></div>
@@ -431,7 +431,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 28%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 6px 6px 0 0;
                       "
                     ></div>
@@ -446,7 +446,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 50%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 6px 6px 0 0;
                       "
                     ></div>
@@ -454,7 +454,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 65%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 6px 6px 0 0;
                       "
                     ></div>
@@ -462,7 +462,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 80%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 6px 6px 0 0;
                       "
                     ></div>
@@ -470,7 +470,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 90%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 6px 6px 0 0;
                       "
                     ></div>
@@ -485,7 +485,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 35%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 4px 4px 0 0;
                       "
                     ></div>
@@ -493,7 +493,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 30%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 4px 4px 0 0;
                       "
                     ></div>
@@ -501,7 +501,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 45%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 4px 4px 0 0;
                       "
                     ></div>
@@ -509,7 +509,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 55%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 4px 4px 0 0;
                       "
                     ></div>
@@ -517,7 +517,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 65%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 4px 4px 0 0;
                       "
                     ></div>
@@ -525,7 +525,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 70%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 4px 4px 0 0;
                       "
                     ></div>
@@ -533,7 +533,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 80%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 4px 4px 0 0;
                       "
                     ></div>
@@ -541,7 +541,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 75%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 4px 4px 0 0;
                       "
                     ></div>
@@ -549,7 +549,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 85%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 4px 4px 0 0;
                       "
                     ></div>
@@ -557,7 +557,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 90%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 4px 4px 0 0;
                       "
                     ></div>
@@ -565,7 +565,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 78%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 4px 4px 0 0;
                       "
                     ></div>
@@ -573,7 +573,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="flex-1 transition-all hover:opacity-80"
                       style="
                         height: 72%;
-                        background: linear-gradient(180deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(180deg, #2EB6C7 0%, #26A3B3 100%);
                         border-radius: 4px 4px 0 0;
                       "
                     ></div>
@@ -729,7 +729,7 @@ function calculateMins(start_time: string, end_time: string) {
                       class="h-9 rounded-full transition-all"
                       style="
                         width: 100%;
-                        background: linear-gradient(90deg, #5ba4b8 0%, #4a8a9b 100%);
+                        background: linear-gradient(90deg, #2EB6C7 0%, #26A3B3 100%);
                       "
                     ></div>
                   </div>
@@ -748,9 +748,10 @@ function calculateMins(start_time: string, end_time: string) {
           :class="[
             'py-3 text-sm font-medium transition-colors border-b-2',
             activeTab === 'queue'
-              ? 'border-primary text-primary'
+              ? 'border-transparent'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           ]"
+          :style="activeTab === 'queue' ? 'border-bottom-color: #2EB6C7; color: #2EB6C7;' : ''"
         >
           遛狗清單
         </button>
@@ -759,9 +760,10 @@ function calculateMins(start_time: string, end_time: string) {
           :class="[
             'py-3 text-sm font-medium transition-colors border-b-2',
             activeTab === 'published'
-              ? 'border-primary text-primary'
+              ? 'border-transparent'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           ]"
+          :style="activeTab === 'published' ? 'border-bottom-color: #2EB6C7; color: #2EB6C7;' : ''"
         >
           發佈紀錄
         </button>
@@ -770,9 +772,10 @@ function calculateMins(start_time: string, end_time: string) {
           :class="[
             'py-3 text-sm font-medium transition-colors border-b-2',
             activeTab === 'walked'
-              ? 'border-primary text-primary'
+              ? 'border-transparent'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           ]"
+          :style="activeTab === 'walked' ? 'border-bottom-color: #2EB6C7; color: #2EB6C7;' : ''"
         >
           遛狗紀錄
         </button>
@@ -802,7 +805,8 @@ function calculateMins(start_time: string, end_time: string) {
                   <!-- 狀態標記 -->
                   <div class="flex-shrink-0">
                     <span
-                      class="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-600"
+                      class="inline-block px-2 py-1 text-xs rounded-full"
+                      style="background-color: #D1F5FA; color: #2EB6C7;"
                     >
                       待遛狗
                     </span>
@@ -967,9 +971,9 @@ function calculateMins(start_time: string, end_time: string) {
                   <div class="flex-shrink-0">
                     <svg
                       v-if="event.status === 'started'"
-                      class="w-6 h-6 text-blue-500 animate-spin"
+                      class="w-6 h-6 animate-spin"
                       fill="none"
-                      stroke="currentColor"
+                      stroke="#2EB6C7"
                       viewBox="0 0 24 24"
                     >
                       <path

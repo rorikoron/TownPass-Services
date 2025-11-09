@@ -356,28 +356,54 @@ function updateMarkers() {
       const tags = [];
       if (event.dog_breed) tags.push(event.dog_breed);
       if (event.activity_type) tags.push(event.activity_type);
-      if (event.request_sitter) tags.push('徵求保姆');
 
       const html = `
-        <div style="display:flex;gap:16px;align-items:start;max-width:320px;padding:8px;">
-          <img src="${avatar}" alt="${event.dog_name}" width="64" height="64" style="border-radius:50%;object-fit:cover;flex-shrink:0;" />
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:700;font-size:17px;margin-bottom:6px;color:#1a1a1a;line-height:1.3;">${event.title}</div>
-            <div style="color:#666;font-size:14px;margin-bottom:8px;line-height:1.4;">${event.description}</div>
-            ${tags.length > 0 ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
-              ${tags.map((tag) => `<span style="font-size:11px;border:1px solid #2EB6C7;color:#2EB6C7;border-radius:12px;padding:3px 10px;font-weight:500;">${tag}</span>`).join('')}
-            </div>` : ''}
-            <div style="display:flex;align-items:center;gap:4px;color:#2EB6C7;font-size:13px;font-weight:600;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="#2EB6C7">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
-              <span>距離 ${event.distance.toFixed(1)} 公里</span>
-            </div>
+        <div style="max-width:280px;padding:6px;">
+          <!-- 頭貼和關閉按鈕同一排 -->
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;">
+            <img src="${avatar}" alt="${event.dog_name}" width="60" height="60" style="border-radius:50%;object-fit:cover;flex-shrink:0;" />
+            <button id="close-info-window" style="background:none;border:none;cursor:pointer;padding:0;color:#999;font-size:24px;line-height:1;width:24px;height:24px;display:flex;align-items:center;justify-content:center;">&times;</button>
+          </div>
+          
+          <!-- 標題和描述在頭貼下方 -->
+          <div style="margin-bottom:10px;">
+            <div style="font-weight:700;font-size:16px;margin-bottom:6px;color:#1a1a1a;line-height:1.3;">${event.title}</div>
+            <div style="color:#666;font-size:13px;line-height:1.5;">${event.description}</div>
+          </div>
+          
+          <!-- 標籤 -->
+          ${tags.length > 0 ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+            ${tags.map((tag) => `<span style="font-size:11px;border:1px solid #2EB6C7;color:#2EB6C7;background-color:#f0fafb;border-radius:12px;padding:3px 10px;font-weight:500;">${tag}</span>`).join('')}
+          </div>` : ''}
+          
+          <!-- 距離 -->
+          <div style="display:flex;align-items:center;gap:4px;color:#2EB6C7;font-size:13px;font-weight:600;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#2EB6C7">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+            <span>距離 ${event.distance.toFixed(1)} 公里</span>
           </div>
         </div>
       `;
       infoWindow!.setContent(html);
       infoWindow!.open({ anchor: marker, map });
+      
+      // 隱藏 Google Maps 預設的關閉按鈕
+      setTimeout(() => {
+        const closeBtn = document.querySelector('.gm-ui-hover-effect');
+        if (closeBtn) {
+          (closeBtn as HTMLElement).style.display = 'none';
+        }
+        
+        // 給我們自己的關閉按鈕添加點擊事件
+        const customCloseBtn = document.getElementById('close-info-window');
+        if (customCloseBtn) {
+          customCloseBtn.addEventListener('click', () => {
+            infoWindow?.close();
+            selectedEventId.value = null;
+          });
+        }
+      }, 100);
     });
 
     markers.push(marker);
@@ -512,7 +538,7 @@ const refreshData = async () => {
   </div>
 
   <!-- 活動列表 - 只顯示選中的事件 -->
-  <div v-if="selectedEventId" class="px-4 pt-3 pb-6 space-y-3 bg-background">
+  <div v-if="selectedEventId" class="px-4 pt-3 pb-2 space-y-3 bg-background">
     <h3 class="font-semibold text-foreground">活動詳情</h3>
     
     <!-- 顯示選中的活動 -->
@@ -558,9 +584,6 @@ const refreshData = async () => {
               </span>
               <span v-if="event.activity_type" class="text-xs border border-primary text-primary rounded-full px-2 py-0.5">
                 {{ event.activity_type }}
-              </span>
-              <span v-if="event.request_sitter" class="text-xs border border-orange-500 text-orange-500 rounded-full px-2 py-0.5">
-                徵求保姆
               </span>
             </div>
           </div>
@@ -615,7 +638,6 @@ const refreshData = async () => {
 
           <div v-if="event.sitter_name" class="flex items-start gap-2">
             <div class="flex-1">
-              <p class="text-sm font-medium text-foreground">保姆</p>
               <p class="text-sm text-muted-foreground">{{ event.sitter_name }}</p>
             </div>
           </div>
@@ -646,7 +668,7 @@ const refreshData = async () => {
   </div>
 
   <!-- 寵物友善推薦（標籤頁） -->
-  <div class="px-4 bg-background pb-24">
+  <div class="px-4 pt-2 bg-background pb-24">
     <!-- 標籤頁 -->
     <div class="flex gap-2 mb-3">
       <button 
@@ -654,9 +676,10 @@ const refreshData = async () => {
         :class="[
           'flex-1 py-2 px-4 rounded-lg font-medium transition-all',
           activeTab === 'parks' 
-            ? 'bg-primary text-white shadow-md' 
+            ? 'text-white shadow-md' 
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
         ]"
+        :style="activeTab === 'parks' ? 'background-color: #2EB6C7;' : ''"
       >
         公園景點
       </button>
@@ -665,9 +688,10 @@ const refreshData = async () => {
         :class="[
           'flex-1 py-2 px-4 rounded-lg font-medium transition-all',
           activeTab === 'cafes' 
-            ? 'bg-primary text-white shadow-md' 
+            ? 'text-white shadow-md' 
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
         ]"
+        :style="activeTab === 'cafes' ? 'background-color: #2EB6C7;' : ''"
       >
         寵物友善店家
       </button>
@@ -689,10 +713,10 @@ const refreshData = async () => {
               <p v-if="park.description" class="text-xs text-muted-foreground mt-2">{{ park.description }}</p>
             </div>
             <div class="flex items-center gap-1 ml-3">
-              <svg class="w-4 h-4 text-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+              <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#2EB6C7">
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
               </svg>
-              <span class="text-sm font-semibold text-primary whitespace-nowrap">{{ park.distance }} km</span>
+              <span class="text-sm font-semibold whitespace-nowrap" style="color: #2EB6C7;">{{ park.distance }} km</span>
             </div>
           </div>
         </BaseCard>
