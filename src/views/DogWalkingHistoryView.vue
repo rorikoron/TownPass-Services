@@ -208,14 +208,41 @@ const handleStopWalking = async (eventId: string) => {
   const now = new Date();
   const startTime = new Date(event.start_time);
   
-  // 計算實際遛狗時長（分鐘）
+  // 計算實際遛狗時長
   const durationMs = now.getTime() - startTime.getTime();
-  const duration = Math.round(durationMs / (1000 * 60));
+  const durationMinutes = Math.round(durationMs / (1000 * 60));
+  const durationSeconds = Math.round(durationMs / 1000);
   
-  console.log('⏱️ 遛狗時長:', duration, '分鐘');
+  // 如果時長太短（小於1分鐘），使用秒數顯示；否則使用分鐘
+  let duration: number;
+  let durationUnit: string;
+  let durationDisplay: string;
+  
+  if (durationMinutes < 1) {
+    // 不到1分鐘，顯示秒數（最少10秒）
+    duration = Math.max(durationSeconds, 10);
+    durationUnit = '秒';
+    durationDisplay = `${duration}`;
+  } else if (durationMinutes >= 60) {
+    // 超過60分鐘，顯示小時和分鐘
+    const hours = Math.floor(durationMinutes / 60);
+    const mins = durationMinutes % 60;
+    duration = durationMinutes;
+    durationUnit = '';
+    durationDisplay = `${hours} 小時 ${mins} 分鐘`;
+  } else {
+    // 1-59分鐘，正常顯示
+    duration = durationMinutes;
+    durationUnit = '分鐘';
+    durationDisplay = `${duration}`;
+  }
+  
+  console.log('⏱️ 遛狗時長:', durationDisplay, durationUnit || '');
   
   // 根據時長計算步數和卡路里（模擬數據）
-  const steps = Math.floor(duration * 80 + Math.random() * 500); // 約每分鐘80步
+  // 使用分鐘數計算，即使顯示秒數也按至少1分鐘算
+  const effectiveMinutes = Math.max(durationMinutes, 1);
+  const steps = Math.floor(effectiveMinutes * 80 + Math.random() * 500); // 約每分鐘80步
   const calories = Math.floor(steps * 0.04); // 約每步消耗0.04卡路里
   
   try {
@@ -253,6 +280,8 @@ const handleStopWalking = async (eventId: string) => {
     start_time: startTime.toISOString(),
     end_time: now.toISOString(),
     duration: duration,
+    durationDisplay: durationDisplay,
+    durationUnit: durationUnit,
     steps: steps,
     calories: calories
   };
@@ -304,30 +333,32 @@ const handleRemoveEvent = async (eventId: string) => {
             </svg>
           </div>
 
-          <h2 class="text-2xl font-bold text-gray-900 mb-2">🎉 恭喜完成遛狗！</h2>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">恭喜完成遛狗！</h2>
           <p class="text-gray-600 mb-6">{{ settlementData.dog_name }}（{{ settlementData.dog_breed }}）</p>
 
           <!-- 統計資料 -->
           <div class="space-y-4 mb-6">
             <!-- 遛狗時長 -->
-            <div class="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg p-4 border border-cyan-200">
+            <div class="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-lg p-4 border" style="border-color: #2EB6C7;">
               <div class="text-sm text-gray-600 mb-1">遛狗時長</div>
-              <div class="text-3xl font-bold text-cyan-600">{{ settlementData.duration }}</div>
-              <div class="text-xs text-gray-500">分鐘</div>
+              <div class="text-3xl font-bold" style="color: #2EB6C7;">
+                {{ settlementData.durationDisplay }}
+              </div>
+              <div class="text-xs text-gray-500">{{ settlementData.durationUnit }}</div>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
               <!-- 步數 -->
-              <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
+              <div class="bg-gray-50 rounded-lg p-4 border border-gray-300">
                 <div class="text-sm text-gray-600 mb-1">步數</div>
-                <div class="text-xl font-bold text-purple-600">{{ settlementData.steps.toLocaleString() }}</div>
+                <div class="text-xl font-bold text-gray-800">{{ settlementData.steps.toLocaleString() }}</div>
                 <div class="text-xs text-gray-500">步</div>
               </div>
 
               <!-- 卡路里 -->
-              <div class="bg-orange-50 rounded-lg p-4 border border-orange-200">
+              <div class="bg-gray-50 rounded-lg p-4 border border-gray-300">
                 <div class="text-sm text-gray-600 mb-1">消耗</div>
-                <div class="text-xl font-bold text-orange-600">{{ settlementData.calories }}</div>
+                <div class="text-xl font-bold text-gray-800">{{ settlementData.calories }}</div>
                 <div class="text-xs text-gray-500">卡路里</div>
               </div>
             </div>
@@ -349,10 +380,11 @@ const handleRemoveEvent = async (eventId: string) => {
             </div>
           </div>
 
-          <!-- 關閉按鈕 -->
+          <!-- 完成按鈕 -->
           <button
             @click="closeSettlement"
-            class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-md"
+            class="w-full py-3 text-white font-semibold rounded-lg shadow-md"
+            style="background-color: #2EB6C7;"
           >
             完成
           </button>
@@ -391,29 +423,30 @@ const handleRemoveEvent = async (eventId: string) => {
           <div 
             v-show="isStatsExpanded"
             class="px-4 pb-6 overflow-hidden">
-          <!-- 週/月/年切換按鈕 -->
-          <div class="flex gap-2 mb-6">
+        <!-- 週/月/年切換按鈕 -->
+        <div class="flex gap-2 mb-6">
           <button 
             @click="selectedPeriod = 'week'"
-            :class="selectedPeriod === 'week' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            :class="selectedPeriod === 'week' ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            :style="selectedPeriod === 'week' ? 'background-color: #2EB6C7;' : ''"
             class="px-8 py-2.5 rounded-full text-sm font-medium transition-colors">
             週
           </button>
           <button 
             @click="selectedPeriod = 'month'"
-            :class="selectedPeriod === 'month' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            :class="selectedPeriod === 'month' ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            :style="selectedPeriod === 'month' ? 'background-color: #2EB6C7;' : ''"
             class="px-8 py-2.5 rounded-full text-sm font-medium transition-colors">
             月
           </button>
           <button 
             @click="selectedPeriod = 'year'"
-            :class="selectedPeriod === 'year' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            :class="selectedPeriod === 'year' ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            :style="selectedPeriod === 'year' ? 'background-color: #2EB6C7;' : ''"
             class="px-8 py-2.5 rounded-full text-sm font-medium transition-colors">
             年
           </button>
-        </div>
-
-        <!-- 長條圖 -->
+        </div>        <!-- 長條圖 -->
         <div class="mb-6 relative" style="padding-bottom: 50px;">
           <!-- Y 軸刻度線和數值 -->
           <div class="absolute left-0 top-0 flex flex-col justify-between text-xs text-gray-500 pr-3 font-medium" style="height: 200px;">
@@ -436,37 +469,37 @@ const handleRemoveEvent = async (eventId: string) => {
 
               <!-- 週數據 -->
               <div v-if="selectedPeriod === 'week'" class="absolute inset-0 flex items-end justify-between gap-2">
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 25%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 45%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 75%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 40%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 55%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 30%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 28%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 25%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 6px 6px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 45%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 6px 6px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 75%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 6px 6px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 40%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 6px 6px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 55%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 6px 6px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 30%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 6px 6px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 28%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 6px 6px 0 0;"></div>
               </div>
 
               <!-- 月數據 -->
               <div v-if="selectedPeriod === 'month'" class="absolute inset-0 flex items-end justify-between gap-2">
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 50%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 65%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 80%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 90%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 6px 6px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 50%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 6px 6px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 65%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 6px 6px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 80%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 6px 6px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 90%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 6px 6px 0 0;"></div>
               </div>
 
               <!-- 年數據 -->
               <div v-if="selectedPeriod === 'year'" class="absolute inset-0 flex items-end justify-between gap-1">
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 35%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 30%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 45%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 55%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 65%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 70%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 80%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 75%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 85%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 90%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 78%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
-                <div class="flex-1 transition-all hover:opacity-80" style="height: 72%; background: linear-gradient(180deg, #5BA4B8 0%, #4A8A9B 100%); border-radius: 4px 4px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 35%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 4px 4px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 30%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 4px 4px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 45%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 4px 4px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 55%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 4px 4px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 65%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 4px 4px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 70%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 4px 4px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 80%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 4px 4px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 75%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 4px 4px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 85%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 4px 4px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 90%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 4px 4px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 78%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 4px 4px 0 0;"></div>
+                <div class="flex-1 transition-all hover:opacity-80" style="height: 72%; background: linear-gradient(180deg, #2EB6C7 0%, #258B9A 100%); border-radius: 4px 4px 0 0;"></div>
               </div>
 
               <!-- X 軸標籤 - 週 -->
@@ -588,7 +621,7 @@ const handleRemoveEvent = async (eventId: string) => {
               <span class="text-sm font-medium text-gray-700 w-12">今天</span>
               <div class="flex-1 mx-4">
                 <div class="h-9 rounded-full transition-all" 
-                     style="width: 61.5%; background: linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%);"></div>
+                     style="width: 61.5%; background: linear-gradient(90deg, #7DD3C0 0%, #2EB6C7 100%);"></div>
               </div>
               <span class="text-base font-bold text-gray-900 w-16 text-right">5306</span>
             </div>
@@ -597,7 +630,7 @@ const handleRemoveEvent = async (eventId: string) => {
               <span class="text-sm font-medium text-gray-700 w-12">平均</span>
               <div class="flex-1 mx-4">
                 <div class="h-9 rounded-full transition-all" 
-                     style="width: 100%; background: linear-gradient(90deg, #5BA4B8 0%, #4A8A9B 100%);"></div>
+                     style="width: 100%; background: linear-gradient(90deg, #2EB6C7 0%, #258B9A 100%);"></div>
               </div>
               <span class="text-base font-bold text-gray-900 w-16 text-right">8626</span>
             </div>

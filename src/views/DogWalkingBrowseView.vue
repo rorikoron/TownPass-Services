@@ -118,23 +118,65 @@ const ACTIVITIES = [
 // const dogs = ref<Event[]>([]);
 const events = ref<Event[]>([]);
 const searchEventsWithFilters = async () => {
-  const startDateTime = `${walkingStartDatetime.value.replace('T', ' ')}:00+00`;
-  const endDateTime = `${walkingEndDatetime.value.replace('T', ' ')}:00+00`;
-  const { data, error } = await supabase
-    .from('event')
-    .select('*')
-    .eq('status', 'pending')
-    .or(selectedActivities.value.map((f) => `activity_type.like.%${f}%`).join(','))
-    .gte('start_time', startDateTime)
-    .lte('end_time', endDateTime);
+  console.log('🔍 開始篩選:', {
+    品種: selectedBreed.value,
+    活動: selectedActivities.value,
+    開始時間: walkingStartDatetime.value,
+    結束時間: walkingEndDatetime.value
+  });
 
-  if (error) {
-    console.error('データ取得エラー:', error);
-    return;
+  try {
+    // 建立基本查詢 - 只查詢 pending 狀態的活動
+    let query = supabase
+      .from('event')
+      .select('*')
+      .eq('status', 'pending');
+
+    // 如果有選擇品種（且不是 'all'）
+    if (selectedBreed.value && selectedBreed.value !== 'all') {
+      query = query.eq('dog_breed', selectedBreed.value);
+      console.log('📌 篩選品種:', selectedBreed.value);
+    }
+
+    // 如果有選擇活動類型
+    if (selectedActivities.value.length > 0) {
+      // 使用 OR 條件來匹配任何一個活動類型
+      const activityConditions = selectedActivities.value
+        .map(activity => `activity_type.ilike.%${activity}%`)
+        .join(',');
+      query = query.or(activityConditions);
+      console.log('📌 篩選活動:', selectedActivities.value);
+    }
+
+    // 如果有選擇開始時間
+    if (walkingStartDatetime.value) {
+      const startDateTime = new Date(walkingStartDatetime.value).toISOString();
+      query = query.gte('start_time', startDateTime);
+      console.log('📌 篩選開始時間 >=', startDateTime);
+    }
+
+    // 如果有選擇結束時間
+    if (walkingEndDatetime.value) {
+      const endDateTime = new Date(walkingEndDatetime.value).toISOString();
+      query = query.lte('end_time', endDateTime);
+      console.log('📌 篩選結束時間 <=', endDateTime);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('❌ 資料取得錯誤:', error);
+      alert('查詢失敗：' + error.message);
+      return;
+    }
+
+    console.log('✅ 查詢成功，找到', data?.length || 0, '筆資料');
+    events.value = data as Event[];
+    showResults.value = true;
+  } catch (err) {
+    console.error('❌ 查詢異常:', err);
+    alert('查詢失敗，請稍後再試');
   }
-
-  events.value = data as Event[];
-  showResults.value = true;
 };
 const selectedUseCase = ref('');
 const selectedBreed = ref('all');
@@ -225,24 +267,35 @@ onMounted(() => {
 const user_id = ref('7f3562f4-bb3f-4ec7-89b9-da3b4b5ff250');
 const user_name = ref('testuser');
 const handleWalkingDog = async (created_at: string) => {
-  // 檢查當前用戶帳號是否已設置
-  const { data, error } = await supabase
-    .from('event')
-    .neq('user_id', user_id.value)
-    .update({
-      sitter_id: user_id.value,
-      proposer_name: user_name.value
-    })
-    .eq('created_at', created_at);
+  console.log('🐕 加入遛狗清單，created_at:', created_at);
+  
+  try {
+    const { data, error } = await supabase
+      .from('event')
+      .update({
+        sitter_id: user_id.value,
+        proposer_name: user_name.value
+        // 不更新 status，保持 pending 狀態等待雇主確認
+      })
+      .eq('created_at', created_at)
+      .neq('user_id', user_id.value) // 不能接自己的任務
+      .select();
 
-  if (error) {
-    console.error('データ取得エラー:', error);
-    return;
+    if (error) {
+      console.error('❌ 更新失敗:', error);
+      alert('加入失敗：' + error.message);
+      return;
+    }
+
+    console.log('✅ 加入成功，等待雇主確認:', data);
+    alert('已加入遛狗清單，等待雇主確認！');
+
+    // route to /history
+    router.push('/history');
+  } catch (err) {
+    console.error('❌ 請求異常:', err);
+    alert('加入失敗，請稍後再試');
   }
-  alert('已加入遛狗清單！');
-
-  // route to /history
-  router.push('/history');
 };
 
 const handleStopWalking = () => {
@@ -454,12 +507,8 @@ const handleStopWalking = () => {
                   <div>
                     <p class="text-xs text-muted-foreground font-semibold mb-1">評分</p>
                     <p class="text-foreground">
-                      <span class="text-primary-500 font-semibold text-lg">{{
-                        event?.rating ?? 4.8
-                      }}</span>
-                      <span class="text-muted-foreground text-sm">
-                        ({{ event?.reviews ?? 4 }} 則評論)</span
-                      >
+                      <span class="text-primary-500 font-semibold text-lg">4.8</span>
+                      <span class="text-muted-foreground text-sm"> (4 則評論)</span>
                     </p>
                   </div>
 
@@ -474,7 +523,7 @@ const handleStopWalking = () => {
                   <!-- 聯繫按鈕 -->
                   <BaseButton
                     class="w-full py-2 text-sm bg-primary text-primary-foreground mt-2"
-                    @click="handleContactOwner(selectedDog.dogName)"
+                    @click="handleContactOwner(event.user_name)"
                   >
                     聯繫飼主
                   </BaseButton>
