@@ -643,17 +643,6 @@ const handleRemoveEvent = async (eventId: string) => {
       <!-- Tabs Header -->
       <div class="w-full grid grid-cols-3 gap-0 border-b border-border bg-background px-4">
         <button
-          @click="activeTab = 'queue'"
-          :class="[
-            'py-3 text-sm font-medium transition-colors border-b-2',
-            activeTab === 'queue'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          ]"
-        >
-          遛狗清單
-        </button>
-        <button
           @click="activeTab = 'published'"
           :class="[
             'py-3 text-sm font-medium transition-colors border-b-2',
@@ -674,6 +663,17 @@ const handleRemoveEvent = async (eventId: string) => {
           ]"
         >
           遛狗紀錄
+        </button>
+        <button
+          @click="activeTab = 'queue'"
+          :class="[
+            'py-3 text-sm font-medium transition-colors border-b-2',
+            activeTab === 'queue'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          ]"
+        >
+          遛狗清單
         </button>
       </div>
 
