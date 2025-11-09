@@ -460,25 +460,43 @@ const recenter = async () => {
 watch(events, updateMarkers);
 
 /** 預約活動 */
-const bookEvent = (event: any) => {
+const bookEvent = async (event: any) => {
   // 檢查是否已預約
   if (bookedEventIds.value.has(event.event_id)) {
     return;
   }
   
-  // 將活動加入到遛狗清單
-  dogWalkingStore.addToQueue(
-    {
-      id: event.event_id,
-      name: event.dog_name || '未命名',
-      breed: event.dog_breed || '未知品種',
-      owner: event.user_name || '未知飼主'
-    },
-    'current-user-id' // TODO: 替換成實際的使用者 ID
-  );
-  
-  // 標記為已預約
-  bookedEventIds.value.add(event.event_id);
+  try {
+    // 使用固定的 user_id (與 DogWalkingHistoryView 相同)
+    const userId = '7f3562f4-bb3f-4ec7-89b9-da3b4b5ff250';
+    
+    console.log('當前使用者:', userId);
+    console.log('預約活動:', event.event_id);
+    
+    // 更新 Supabase event 表，設定 sitter_id
+    const { data, error } = await supabase
+      .from('event')
+      .update({ 
+        sitter_id: userId
+      })
+      .eq('event_id', event.event_id)
+      .select();
+    
+    if (error) {
+      console.error('預約失敗:', error);
+      return;
+    }
+    
+    console.log('預約成功，更新結果:', data);
+    
+    // 標記為已預約
+    bookedEventIds.value.add(event.event_id);
+    
+    // 重新抓取活動列表以更新狀態
+    await fetchEvents();
+  } catch (err) {
+    console.error('預約過程發生錯誤:', err);
+  }
 };
 
 /** 重新抓取資料 */

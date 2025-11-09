@@ -60,10 +60,9 @@ const updateEvents = async () => {
   events.value = data as Event[];
 };
 
+
 onMounted(async () => {
   await updateEvents();
-  
-
   
   // 檢查並補充測試資料（已確認的活動）
   const activeDogs = events.value.filter(e => e.sitter_id === user_id && e.status === 'active');
@@ -151,38 +150,44 @@ const handleConfirmPublisher = async (eventId: string) => {
 
 // 開始遛狗 (用於遛狗清單)
 const handleStartWalking = async (eventId: string) => {
-  console.log('🐕 開始遛狗被點擊了！', 'eventId:', eventId);
+  console.log('🐕 開始遛狗，eventId:', eventId);
+  
+  // 記錄開始時間
+  const now = new Date();
   
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('event')
-      .update({ status: 'started' })
-      .eq('event_id', eventId);
+      .update({ 
+        status: 'started',
+        start_time: now.toISOString() // 更新實際開始時間
+      })
+      .eq('event_id', eventId)
+      .select();
 
     if (error) {
-      console.error('❌ 更新狀態錯誤:', error);
-      // 即使更新失敗，也繼續跳轉（用於測試）
-      console.warn('⚠️ 雖然更新失敗，但仍然繼續跳轉...');
-    } else {
-      console.log('✅ 狀態更新成功');
-      await updateEvents();
+      console.error('❌ Supabase 更新失敗，使用本地模擬:', error.message);
+      // 本地模擬：直接更新記憶體中的資料
+      const event = events.value.find(e => e.event_id === eventId);
+      if (event) {
+        event.status = 'started';
+        event.start_time = now.toISOString();
+        console.log('✅ 本地更新成功（模擬模式）');
+      }
+      return;
     }
-  } catch (err) {
-    console.error('❌ Supabase 請求異常:', err);
-    console.warn('⚠️ 請求被攔截，但仍然繼續跳轉...');
-  }
-  
-  console.log('🚀 準備跳轉到地圖頁面...', { name: 'instant', eventId });
-  
-  // 跳轉到遛狗地圖頁面
-  try {
-    await router.push({
-      name: 'instant',
-      query: { eventId }
-    });
-    console.log('✅ 路由跳轉已執行');
-  } catch (routeError) {
-    console.error('❌ 路由跳轉失敗:', routeError);
+    
+    console.log('✅ Supabase 更新成功:', data);
+    await updateEvents();
+  } catch (err: any) {
+    console.error('❌ Supabase 請求被阻擋，使用本地模擬:', err.message);
+    // 本地模擬：直接更新記憶體中的資料
+    const event = events.value.find(e => e.event_id === eventId);
+    if (event) {
+      event.status = 'started';
+      event.start_time = now.toISOString();
+      console.log('✅ 本地更新成功（模擬模式）');
+    }
   }
 };
 
@@ -191,28 +196,55 @@ const settlementData = ref<any>(null);
 
 // 停止遛狗 (用於遛狗清單)
 const handleStopWalking = async (eventId: string) => {
+  console.log('🏁 完成遛狗，eventId:', eventId);
+  
   // 先獲取活動資料
   const event = events.value.find(e => e.event_id === eventId);
-  if (!event) return;
-
-  const now = new Date();
-  
-  const { error } = await supabase
-    .from('event')
-    .update({ 
-      status: 'completed',
-      end_time: now.toISOString() // 更新結束時間為現在
-    })
-    .eq('event_id', eventId);
-
-  if (error) {
-    console.error('更新狀態錯誤:', error);
+  if (!event) {
+    console.error('❌ 找不到活動資料');
     return;
   }
 
-  // 計算遛狗時長（假設從點擊開始按鈕到現在，模擬 30-60 分鐘）
-  const duration = Math.floor(Math.random() * 30 + 30); // 30-60 分鐘
-  const startTime = new Date(now.getTime() - duration * 60 * 1000);
+  const now = new Date();
+  const startTime = new Date(event.start_time);
+  
+  // 計算實際遛狗時長（分鐘）
+  const durationMs = now.getTime() - startTime.getTime();
+  const duration = Math.round(durationMs / (1000 * 60));
+  
+  console.log('⏱️ 遛狗時長:', duration, '分鐘');
+  
+  // 根據時長計算步數和卡路里（模擬數據）
+  const steps = Math.floor(duration * 80 + Math.random() * 500); // 約每分鐘80步
+  const calories = Math.floor(steps * 0.04); // 約每步消耗0.04卡路里
+  
+  try {
+    const { data, error } = await supabase
+      .from('event')
+      .update({ 
+        status: 'completed',
+        end_time: now.toISOString()
+      })
+      .eq('event_id', eventId)
+      .select();
+
+    if (error) {
+      console.error('❌ Supabase 更新失敗，使用本地模擬:', error.message);
+      // 本地模擬：直接更新記憶體中的資料
+      event.status = 'completed';
+      event.end_time = now.toISOString();
+      console.log('✅ 本地更新成功（模擬模式）');
+    } else {
+      console.log('✅ Supabase 更新成功:', data);
+      await updateEvents();
+    }
+  } catch (err: any) {
+    console.error('❌ Supabase 請求被阻擋，使用本地模擬:', err.message);
+    // 本地模擬：直接更新記憶體中的資料
+    event.status = 'completed';
+    event.end_time = now.toISOString();
+    console.log('✅ 本地更新成功（模擬模式）');
+  }
 
   // 顯示結算畫面
   settlementData.value = {
@@ -221,10 +253,11 @@ const handleStopWalking = async (eventId: string) => {
     start_time: startTime.toISOString(),
     end_time: now.toISOString(),
     duration: duration,
-    steps: Math.floor(Math.random() * 3000 + 2000) // 模擬步數 2000-5000
+    steps: steps,
+    calories: calories
   };
-
-  await updateEvents();
+  
+  console.log('📊 結算資料:', settlementData.value);
 };
 
 // 關閉結算畫面
@@ -271,45 +304,57 @@ const handleRemoveEvent = async (eventId: string) => {
             </svg>
           </div>
 
-          <h2 class="text-2xl font-bold text-gray-900 mb-2">遛狗完成！</h2>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">🎉 恭喜完成遛狗！</h2>
           <p class="text-gray-600 mb-6">{{ settlementData.dog_name }}（{{ settlementData.dog_breed }}）</p>
 
           <!-- 統計資料 -->
           <div class="space-y-4 mb-6">
-            <div class="bg-gray-50 rounded-lg p-4">
-              <div class="text-sm text-gray-600 mb-1">此次步數</div>
-              <div class="text-3xl font-bold text-primary">{{ settlementData.steps.toLocaleString() }}</div>
-              <div class="text-xs text-gray-500">步</div>
+            <!-- 遛狗時長 -->
+            <div class="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg p-4 border border-cyan-200">
+              <div class="text-sm text-gray-600 mb-1">遛狗時長</div>
+              <div class="text-3xl font-bold text-cyan-600">{{ settlementData.duration }}</div>
+              <div class="text-xs text-gray-500">分鐘</div>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
-              <div class="bg-gray-50 rounded-lg p-4">
-                <div class="text-sm text-gray-600 mb-1">開始時間</div>
-                <div class="text-lg font-semibold text-gray-900">
+              <!-- 步數 -->
+              <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                <div class="text-sm text-gray-600 mb-1">步數</div>
+                <div class="text-xl font-bold text-purple-600">{{ settlementData.steps.toLocaleString() }}</div>
+                <div class="text-xs text-gray-500">步</div>
+              </div>
+
+              <!-- 卡路里 -->
+              <div class="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                <div class="text-sm text-gray-600 mb-1">消耗</div>
+                <div class="text-xl font-bold text-orange-600">{{ settlementData.calories }}</div>
+                <div class="text-xs text-gray-500">卡路里</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-gray-50 rounded-lg p-3">
+                <div class="text-xs text-gray-600 mb-1">開始時間</div>
+                <div class="text-sm font-semibold text-gray-900">
                   {{ new Date(settlementData.start_time).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) }}
                 </div>
               </div>
 
-              <div class="bg-gray-50 rounded-lg p-4">
-                <div class="text-sm text-gray-600 mb-1">結束時間</div>
-                <div class="text-lg font-semibold text-gray-900">
+              <div class="bg-gray-50 rounded-lg p-3">
+                <div class="text-xs text-gray-600 mb-1">結束時間</div>
+                <div class="text-sm font-semibold text-gray-900">
                   {{ new Date(settlementData.end_time).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) }}
                 </div>
               </div>
-            </div>
-
-            <div class="bg-gray-50 rounded-lg p-4">
-              <div class="text-sm text-gray-600 mb-1">遛狗時長</div>
-              <div class="text-2xl font-bold text-gray-900">{{ settlementData.duration }} 分鐘</div>
             </div>
           </div>
 
           <!-- 關閉按鈕 -->
           <button
             @click="closeSettlement"
-            class="w-full py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+            class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-md"
           >
-            確定
+            完成
           </button>
         </div>
       </div>
@@ -664,6 +709,18 @@ const handleRemoveEvent = async (eventId: string) => {
 
           <!-- 遛狗紀錄（已完成的遛狗 或 已確認的發布 - status為active/started/completed） -->
           <div v-else class="space-y-4">
+
+            <!-- 空狀態 -->
+            <div v-if="events.filter((e) => e.user_id === user_id && e.status === 'pending').length === 0" class="text-center py-12">
+              <p class="text-muted-foreground">沒有待確認的發布紀錄</p>
+            </div>
+          </div>
+
+          <!-- 遛狗紀錄（已完成的遛狗 或 已確認的發布 - status為active/started/completed） -->
+          <div v-if="events.filter((e) => (e.sitter_id === user_id && e.status === 'completed') || (e.user_id === user_id && e.status !== 'pending')).length === 0" class="text-center py-12">
+            <p class="text-muted-foreground">沒有遛狗紀錄</p>
+          </div>
+          <div v-else class="space-y-4">
             <BaseCard
               v-for="event in events.filter(
                 (e) => (e.sitter_id === user_id && e.status === 'completed') || (e.user_id === user_id && e.status !== 'pending')
@@ -745,16 +802,15 @@ const handleRemoveEvent = async (eventId: string) => {
                 </div>
               </div>
             </BaseCard>
-
-            <div v-if="events.filter((e) => (e.sitter_id === user_id && e.status === 'completed') || (e.user_id === user_id && e.status !== 'pending')).length === 0" class="text-center py-12">
-              <p class="text-muted-foreground">沒有遛狗紀錄</p>
-            </div>
           </div>
         </template>
 
         <!-- 遛狗清單（我預約的活動） -->
         <template v-else-if="activeTab === 'queue'">
-          <div class="space-y-4">
+          <div v-if="events.filter((e) => e.sitter_id === user_id && e.status !== 'completed').length === 0" class="text-center py-12">
+            <p class="text-muted-foreground">遛狗清單為空</p>
+          </div>
+          <div v-else class="space-y-4">
             <BaseCard
               v-for="event in events.filter(
                 (e) => e.sitter_id === user_id && e.status !== 'completed'
@@ -817,7 +873,7 @@ const handleRemoveEvent = async (eventId: string) => {
                     v-if="event.status !== 'started'"
                     :disabled="event.status === 'pending'"
                     class="flex-1 py-2 text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                    @click="() => { console.log('⚡ 按鈕被點擊了！event:', event); handleStartWalking(event.event_id); }"
+                    @click="handleStartWalking(event.event_id)"
                   >
                     {{ event.status === 'active' ? '開始遛狗' : '等待雇主確認' }}
                   </BaseButton>
@@ -828,15 +884,11 @@ const handleRemoveEvent = async (eventId: string) => {
                     class="flex-1 py-2 text-sm bg-red-500 text-white hover:bg-red-600"
                     @click="handleStopWalking(event.event_id)"
                   >
-                    結束遛狗
+                    完成遛狗
                   </BaseButton>
                 </div>
               </div>
             </BaseCard>
-
-            <div v-if="events.filter((e) => e.sitter_id === user_id && e.status !== 'completed').length === 0" class="text-center py-12">
-              <p class="text-muted-foreground">遛狗清單為空</p>
-            </div>
           </div>
         </template>
       </div>
