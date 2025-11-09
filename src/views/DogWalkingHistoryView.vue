@@ -40,6 +40,7 @@ interface Event {
   created_at: string;
   sitter_id: string | null;
   proposer_name: string;
+  real_start_time: string;
 }
 const events = ref<Event[]>([]);
 
