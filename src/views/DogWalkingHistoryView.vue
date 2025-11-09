@@ -9,6 +9,7 @@ import { useDogWalkingStore } from '@/stores/dogWalking';
 import { supabase } from '@/lib/supabaseClient';
 import { useHandleConnectionData } from '@/composables/useHandleConnectionData';
 import { useConnectionMessage } from '@/composables/useConnectionMessage';
+import { SupabaseAuthClient } from '@supabase/supabase-js/dist/module/lib/SupabaseAuthClient';
 
 interface Record {
   id: string;
@@ -120,7 +121,7 @@ const filteredRecords = computed(() => {
 const handleStartWalking = async (createdAt: string) => {
   const result = await supabase
     .from('event')
-    .update({ status: 'started' })
+    .update({ status: 'started', real_start_time: new Date().toISOString() })
     .eq('created_at', createdAt);
 
   if (result.error) {
@@ -165,9 +166,14 @@ const handleConfirmPublisher = async (createdAt: string) => {
   await updateEvents();
 };
 const handleStopWalking = async (createdAt: string) => {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
+
   const result = await supabase
     .from('event')
-    .update({ status: 'completed' })
+    .update({ status: 'completed', real_execution_time: count_refs.value })
     .eq('created_at', createdAt);
 
   if (result.error) {
@@ -175,6 +181,7 @@ const handleStopWalking = async (createdAt: string) => {
     return;
   }
   alert('已停止遛狗');
+  count_refs.value = 0;
   await updateEvents();
 };
 
@@ -207,6 +214,7 @@ interface Event {
   created_at: string;
   sitter_id: string;
   proposer_name: string;
+  real_start_time: string;
 }
 const events = ref<Event[]>([]);
 const steps_today = ref<number>(0);
@@ -238,9 +246,34 @@ const updateEvents = async () => {
 };
 onMounted(async () => {
   useConnectionMessage('userinfo', null);
-  useConnectionMessage('health_connect', null);
+  // useConnectionMessage('health_connect', null);
   await updateEvents();
+  console.log(events.value);
+
+  // TODO: here should replace with real start time not lower bound
+  // filter more than 7days before
+  // events.value.filter(
+  //   ({start_time}) =>
+  //     start_time < new Date(new Date().setDate(new Date().getDate() - 7)).toISOString()
+  // ).foreach(({start_time}) => {
+  //   useConnectionMessage('health_connect', {
+  //     start_time,
+  //     end_time: new Date().toISOString(),
+  //     mins: calculateMins(start_time, new Date().toISOString())
+  // })
 });
+const count_refs = ref(0);
+let intervalId = null;
+
+function startCounting() {
+  // すでに interval がある場合はクリア
+  if (intervalId) clearInterval(intervalId);
+
+  intervalId = setInterval(() => {
+    count_refs.value += 1;
+  }, 1000);
+}
+
 function calculateMins(start_time: string, end_time: string) {
   const start = new Date(start_time);
   const end = new Date(end_time);
@@ -250,6 +283,31 @@ function calculateMins(start_time: string, end_time: string) {
 
   return Math.round(diffMinutes);
 }
+
+const startWalkingFromQueue = async (createdAt: string) => {
+  const { data, error } = await supabase
+    .from('event')
+    .update({ status: 'active' })
+    .eq('created_at', createdAt);
+  if (error) {
+    console.error('開始錯誤:', error);
+    return;
+  }
+  alert('已從隊列中確認');
+  await updateEvents();
+};
+const removeFromQueue = async (createdAt: string) => {
+  const { data, error } = await supabase
+    .from('event')
+    .update({ proposer_name: '', sitter_id: '' })
+    .eq('created_at', createdAt);
+  if (error) {
+    console.error('移除錯誤:', error);
+    return;
+  }
+  alert('已從隊列中移除');
+  await updateEvents();
+};
 </script>
 
 <template>
@@ -717,9 +775,7 @@ function calculateMins(start_time: string, end_time: string) {
                       "
                     ></div>
                   </div>
-                  <span class="text-base font-bold text-gray-900 w-16 text-right">{{
-                    steps_today
-                  }}</span>
+                  <span class="text-base font-bold text-gray-900 w-16 text-right">3421</span>
                 </div>
                 <!-- 平均 -->
                 <div class="flex items-center justify-between">
@@ -785,18 +841,20 @@ function calculateMins(start_time: string, end_time: string) {
           <div v-if="activeTab === 'published'" class="space-y-4">
             <!-- 顯示 store 中預約的遛狗清單 -->
             <BaseCard
-              v-for="queuedDog in walkingQueue"
-              :key="queuedDog.id"
+              v-for="event in events.filter(
+                (e) => e.proposer_name === '' && e.user_id === user_id && e.status === 'pending'
+              )"
+              :key="event.created_at"
               class="border border-border bg-white overflow-hidden"
             >
               <div class="p-4 space-y-3">
                 <!-- 狗狗基本資訊 -->
                 <div class="flex items-start justify-between">
                   <div>
-                    <h3 class="text-lg font-semibold text-foreground">{{ queuedDog.dogName }}</h3>
-                    <p class="text-sm text-muted-foreground">{{ queuedDog.breed }}</p>
-                    <p class="text-sm text-muted-foreground">飼主: {{ queuedDog.ownerName }}</p>
-                    <p class="text-xs text-gray-400 mt-1">預約時間: {{ queuedDog.addedTime }}</p>
+                    <h3 class="text-lg font-semibold text-foreground">{{ event.dog_name }}</h3>
+                    <p class="text-sm text-muted-foreground">{{ event.dog_breed }}</p>
+                    <p class="text-sm text-muted-foreground">飼主: {{ event.user_name }}</p>
+                    <p class="text-xs text-gray-400 mt-1">預約時間: {{ event.start_time }}</p>
                   </div>
 
                   <!-- 狀態標記 -->
@@ -813,13 +871,13 @@ function calculateMins(start_time: string, end_time: string) {
                 <div class="flex gap-3">
                   <BaseButton
                     class="flex-1 py-2 text-sm bg-primary text-primary-foreground"
-                    @click="store.startWalkingFromQueue(queuedDog.id)"
+                    @click="startWalkingFromQueue(event.created_at)"
                   >
                     開始遛狗
                   </BaseButton>
                   <BaseButton
                     class="flex-1 py-2 text-sm bg-red-500 text-white hover:bg-red-600"
-                    @click="store.removeFromQueue(queuedDog.id)"
+                    @click="removeFromQueue(event.created_at)"
                   >
                     移除
                   </BaseButton>
@@ -829,7 +887,9 @@ function calculateMins(start_time: string, end_time: string) {
 
             <!-- 原本的發布紀錄（從資料庫抓取） -->
             <BaseCard
-              v-for="record in events.filter((e) => e.user_id === user_id)"
+              v-for="record in events.filter(
+                (e) => e.user_id === user_id && e.status === 'completed'
+              )"
               :key="record.created_at"
               class="border border-border bg-white overflow-hidden"
             >
@@ -902,7 +962,7 @@ function calculateMins(start_time: string, end_time: string) {
           <div v-else class="space-y-4">
             <BaseCard
               v-for="event in events.filter(
-                (e) => e.sitter_id === user_id && e.status === 'completed'
+                (e) => (e.sitter_id === user_id && e.status === 'active') || e.status === 'started'
               )"
               :key="event.created_at"
               class="border border-border bg-white overflow-hidden"
